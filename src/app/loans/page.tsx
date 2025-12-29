@@ -7,7 +7,11 @@ import { useToast } from "@/components/ToastProvider";
 import { Emprestimo } from "@/types";
 
 export default function LoansPage() {
-    const { emprestimos } = useApp();
+    const { emprestimos, loading } = useApp();
+
+    if (loading) {
+        return <div className="container" style={{ textAlign: 'center', padding: 'var(--space-xl)' }}>Carregando...</div>;
+    }
 
     return (
         <div className="container">

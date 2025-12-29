@@ -129,7 +129,7 @@ export default function Home() {
         type: 'danger',
         title: 'Empréstimo Atrasado',
         subtitle: `${loan.cliente_nome}`,
-        propertyId: `../loans/${loan.id}`
+        propertyId: `/loans/${loan.id}`
       });
     } else if (diffDays <= 3 && diffDays >= 0) {
       alerts.push({
@@ -137,7 +137,7 @@ export default function Home() {
         type: 'warning',
         title: diffDays === 0 ? 'Vence Hoje' : 'Empréstimo Vencendo',
         subtitle: `${loan.cliente_nome} - ${due.toLocaleDateString('pt-BR')}`,
-        propertyId: `../loans/${loan.id}`
+        propertyId: `/loans/${loan.id}`
       });
     }
   });
@@ -270,7 +270,7 @@ export default function Home() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {alerts.map(alert => (
-                    <Link href={alert.propertyId.startsWith('..') ? alert.propertyId.replace('..', '') : `/properties/${alert.propertyId}/view`} key={alert.id} className="card" style={{
+                    <Link href={alert.propertyId.startsWith('/') ? alert.propertyId : `/properties/${alert.propertyId}`} key={alert.id} className="card" style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       border: '1px solid var(--color-border)',
                       // NEUTRAL/LIGHT BORDER - No heavy red/orange

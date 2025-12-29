@@ -7,7 +7,11 @@ import { useToast } from "@/components/ToastProvider";
 import { Imovel } from "@/types";
 
 export default function PropertiesPage() {
-    const { imoveis } = useApp();
+    const { imoveis, loading } = useApp();
+
+    if (loading) {
+        return <div className="container" style={{ textAlign: 'center', padding: 'var(--space-xl)' }}>Carregando...</div>;
+    }
 
     return (
         <div className="container">
