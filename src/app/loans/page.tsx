@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, TrendingUp, Eye, Edit2, CheckCircle, AlertTriangle, Calendar, DollarSign } from "lucide-react";
+import { Plus, TrendingUp, Eye, Edit2, CheckCircle, AlertTriangle, Calendar } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/ToastProvider";
+import { Emprestimo } from "@/types";
 
 export default function LoansPage() {
-    const { loans } = useApp();
+    const { emprestimos } = useApp();
 
     return (
         <div className="container">
@@ -17,7 +18,7 @@ export default function LoansPage() {
                 </Link>
             </header>
 
-            {loans.length === 0 ? (
+            {emprestimos.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: 'var(--space-xl) var(--space-md)', background: 'var(--color-surface-1)', borderRadius: 'var(--radius-lg)', border: '1px dashed var(--color-border)' }}>
                     <TrendingUp size={48} style={{ color: 'var(--color-text-tertiary)', marginBottom: 'var(--space-md)', opacity: 0.5 }} />
                     <h3 style={{ marginBottom: '8px', color: 'var(--color-text-secondary)' }}>Nenhum empréstimo ativo</h3>
@@ -28,8 +29,8 @@ export default function LoansPage() {
                 </div>
             ) : (
                 <div style={{ display: 'grid', gap: 'var(--space-md)' }}>
-                    {loans.filter(l => l.startDate && l.dueDate).map((loan) => (
-                        <LoanCard key={loan.id} loan={loan} />
+                    {emprestimos.map((emprestimo) => (
+                        <LoanCard key={emprestimo.id} emprestimo={emprestimo} />
                     ))}
                 </div>
             )}
@@ -38,87 +39,37 @@ export default function LoansPage() {
 }
 
 
-function LoanCard({ loan }: { loan: any }) {
-    const { markLoanAsPaid } = useApp();
+function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
+    const { marcarEmprestimoPago } = useApp();
     const { showToast } = useToast();
 
-    // Helper to calculate stats
-    const calculateStats = () => {
-        if (loan.status === 'paid') {
-            const days = loan.finalTotalDays || 0;
-            const months = Math.ceil(days / 30); // rounding up for display "X months" if roughly X
+    const isPaid = emprestimo.status === 'pago';
 
-            return {
-                daysTotal: days,
-                displayDuration: `${days} dias`,
-                totalReceivable: loan.finalTotalPaid || 0,
-                interestOnly: loan.finalInterestAmount || 0,
-                isOverdue: false,
-                isContracted: true // Assuming paid has finalized match
-            };
-        }
-
-        // Active: Calculate based on DUE DATE vs START (Contracted)
-        // If we have stored contracted values, use them.
-        if (loan.contractedInterest !== undefined && loan.contractedDays !== undefined) {
-            const days = loan.contractedDays;
-
-            // Overdue check
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const due = new Date(loan.dueDate + 'T12:00:00');
-            due.setHours(0, 0, 0, 0);
-            const isOverdue = today > due;
-
-            return {
-                daysTotal: days,
-                displayDuration: `${days} dias`,
-                totalReceivable: loan.principal + loan.contractedInterest,
-                interestOnly: loan.contractedInterest,
-                isOverdue,
-                isContracted: true
-            }
-        }
-
-        // Fallback for old loans (Calculated on the fly based on CONTRACT)
-        const start = new Date(loan.startDate + 'T12:00:00');
-        const end = new Date(loan.dueDate + 'T12:00:00'); // ALWAYS DUE DATE, not Today
-
-        const diffTime = end.getTime() - start.getTime();
-        let totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        if (totalDays < 1) totalDays = 1;
-
-        const dailyRate = loan.interestRate / 30;
-        const interest = loan.principal * (dailyRate / 100) * totalDays;
-        const total = loan.principal + interest;
-
+    // Stats are now direct from DB (Immutable Contract)
+    const stats = {
+        daysTotal: emprestimo.dias_contratados,
+        displayDuration: `${emprestimo.dias_contratados} dias`,
+        totalReceivable: emprestimo.valor_emprestado + emprestimo.juros_total_contratado,
+        interestOnly: emprestimo.juros_total_contratado,
         // Overdue check
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const due = new Date(loan.dueDate + 'T12:00:00');
-        due.setHours(0, 0, 0, 0);
-        const isOverdue = today > due;
-
-        return {
-            daysTotal: totalDays,
-            displayDuration: `${totalDays} dias`,
-            totalReceivable: total,
-            interestOnly: interest,
-            isOverdue,
-            isContracted: false // It effectively is contracted logic, but legacy data structure
-        };
+        isOverdue: false
     };
 
-    const stats = calculateStats();
-    const isPaid = loan.status === 'paid';
+    if (!isPaid) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const due = new Date(emprestimo.data_fim + 'T12:00:00');
+        due.setHours(0, 0, 0, 0);
+        stats.isOverdue = today > due;
+    }
 
-    // Safety check for display dates
-    const startDateStr = loan.startDate ? new Date(loan.startDate + 'T12:00:00').toLocaleDateString('pt-BR') : '-';
-    const dueDateStr = loan.dueDate ? new Date(loan.dueDate + 'T12:00:00').toLocaleDateString('pt-BR') : '-';
+    // Dates
+    const startDateStr = new Date(emprestimo.data_inicio + 'T12:00:00').toLocaleDateString('pt-BR');
+    const dueDateStr = new Date(emprestimo.data_fim + 'T12:00:00').toLocaleDateString('pt-BR');
 
     const handleMarkAsPaid = () => {
-        if (confirm(`Confirmar recebimento de ${loan.borrowerName}?\n\nValor Total: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalReceivable)}\nLucro Garantido: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.interestOnly)}`)) {
-            markLoanAsPaid(loan.id);
+        if (confirm(`Confirmar recebimento de ${emprestimo.cliente_nome}?\n\nValor Total: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalReceivable)}\nLucro Garantido: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.interestOnly)}`)) {
+            marcarEmprestimoPago(emprestimo.id);
             showToast("Empréstimo encerrado com sucesso", "success");
         }
     };
@@ -155,7 +106,7 @@ function LoanCard({ loan }: { loan: any }) {
                 </div>
 
                 <span style={{ color: 'var(--color-text-tertiary)', fontWeight: 'normal', fontSize: '0.8rem' }}>
-                    {loan.displayId || 'ID-Legacy'}
+                    {emprestimo.juros_mensal}% a.m
                 </span>
             </div>
 
@@ -164,9 +115,9 @@ function LoanCard({ loan }: { loan: any }) {
                     <div>
                         <div style={{ fontSize: '0.85rem', color: 'var(--color-text-tertiary)', marginBottom: '2px' }}>Valor Emprestado</div>
                         <div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--color-text-primary)' }}>
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(loan.principal)}
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(emprestimo.valor_emprestado)}
                         </div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: '600', marginTop: '4px', color: 'var(--color-text-secondary)' }}>{loan.borrowerName}</h3>
+                        <h3 style={{ fontSize: '1rem', fontWeight: '600', marginTop: '4px', color: 'var(--color-text-secondary)' }}>{emprestimo.cliente_nome}</h3>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '0.85rem', color: 'var(--color-text-tertiary)', marginBottom: '2px' }}>Lucro Líquido</div>
@@ -201,22 +152,21 @@ function LoanCard({ loan }: { loan: any }) {
                         </button>
                     ) : (
                         <div style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.9rem', color: 'var(--color-text-tertiary)', background: 'var(--color-surface-2)', borderRadius: 'var(--radius-md)', fontWeight: '500', border: '1px dashed var(--color-border)' }}>
-                            <Calendar size={16} /> Pago em {loan.paymentDate ? new Date(loan.paymentDate + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}
+                            <Calendar size={16} /> Pago em {emprestimo.data_pagamento ? new Date(emprestimo.data_pagamento).toLocaleDateString('pt-BR') : '-'}
                         </div>
                     )}
 
-                    <Link href={`/loans/${loan.id}/view`} className="btn" style={{ flex: 1, background: 'var(--color-surface-2)', padding: '0 12px' }}>
+                    <Link href={`/loans/${emprestimo.id}/view`} className="btn" style={{ flex: 1, background: 'var(--color-surface-2)', padding: '0 12px' }}>
                         <Eye size={20} />
                     </Link>
+                    {/* Disabling Edit unless needed 
                     {!isPaid && (
-                        <Link href={`/loans/${loan.id}/edit`} className="btn" style={{ flex: 1, background: 'var(--color-surface-2)', padding: '0 12px' }}>
+                        <Link href={`/loans/${emprestimo.id}/edit`} className="btn" style={{ flex: 1, background: 'var(--color-surface-2)', padding: '0 12px' }}>
                             <Edit2 size={20} />
                         </Link>
-                    )}
+                    )} */}
                 </div>
             </div>
         </div>
     );
 }
-
-
