@@ -11,6 +11,7 @@ import { exportToCSV } from "@/utils/exportUtils";
 
 
 export default function Home() {
+  // V1.0.1 - Force Deploy for Env Vars
   const { imoveis, emprestimos, imoveisPagamentos, refreshData, loading } = useApp();
   const { showToast } = useToast();
   const { signOut } = useAuth(); // Auth Hook
