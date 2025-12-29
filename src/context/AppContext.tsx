@@ -1,69 +1,72 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { Imovel, ImovelPagamento, Emprestimo, Expense } from "@/types";
+import { Imovel, ImovelPagamento, Emprestimo, ImovelGasto } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "./AuthContext";
+import { useToast } from "@/components/ToastProvider";
 
 interface AppContextType {
     imoveis: Imovel[];
     imoveisPagamentos: ImovelPagamento[];
+    imoveisGastos: ImovelGasto[]; // Renamed from expenses
     emprestimos: Emprestimo[];
-    expenses: Expense[]; // Keeping as is for now, but linked to imovel_id
     loading: boolean;
 
     // Imovel Actions
-    adicionarImovel: (imovel: Omit<Imovel, "id" | "created_at">) => Promise<void>;
+    adicionarImovel: (imovel: Omit<Imovel, "id" | "created_at" | "user_id">) => Promise<void>;
     atualizarImovel: (id: string, updates: Partial<Imovel>) => Promise<void>;
     deletarImovel: (id: string) => Promise<void>;
 
     // Pagamento Actions
     receberPagamento: (imovelId: string, dataPagamento: Date) => Promise<void>;
 
+    // Gasto Actions (Refactored)
+    adicionarGasto: (gasto: Omit<ImovelGasto, "id" | "created_at" | "user_id">) => Promise<void>;
+    deletarGasto: (id: string) => Promise<void>;
+
     // Emprestimo Actions
-    adicionarEmprestimo: (emprestimo: Omit<Emprestimo, "id" | "created_at">) => Promise<void>;
+    adicionarEmprestimo: (emprestimo: Omit<Emprestimo, "id" | "created_at" | "user_id">) => Promise<void>;
     marcarEmprestimoPago: (id: string) => Promise<void>;
     deletarEmprestimo: (id: string) => Promise<void>;
-
-    // Expense Actions (Keeping compatibility logic where possible or simple updates)
-    addExpense: (expense: Omit<Expense, "id">) => Promise<void>;
-    deleteExpense: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType>({
     imoveis: [],
     imoveisPagamentos: [],
+    imoveisGastos: [],
     emprestimos: [],
-    expenses: [],
     loading: true,
     adicionarImovel: async () => { },
     atualizarImovel: async () => { },
     deletarImovel: async () => { },
     receberPagamento: async () => { },
+    adicionarGasto: async () => { },
+    deletarGasto: async () => { },
     adicionarEmprestimo: async () => { },
     marcarEmprestimoPago: async () => { },
     deletarEmprestimo: async () => { },
-    addExpense: async () => { },
-    deleteExpense: async () => { },
 });
 
 export const useApp = () => useContext(AppContext);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
     const { user } = useAuth();
+    const { showToast } = useToast();
     const [imoveis, setImoveis] = useState<Imovel[]>([]);
     const [imoveisPagamentos, setImoveisPagamentos] = useState<ImovelPagamento[]>([]);
+    const [imoveisGastos, setImoveisGastos] = useState<ImovelGasto[]>([]);
     const [emprestimos, setEmprestimos] = useState<Emprestimo[]>([]);
-    const [expenses, setExpenses] = useState<Expense[]>([]);
     const [loading, setLoading] = useState(true);
 
     // --- FETCH DATA (SUPABASE) ---
+    // STRICT SOURCE OF TRUTH
     const fetchData = useCallback(async () => {
         if (!user) {
             setImoveis([]);
             setImoveisPagamentos([]);
+            setImoveisGastos([]);
             setEmprestimos([]);
-            setExpenses([]);
             setLoading(false);
             return;
         }
@@ -82,22 +85,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             const { data: pagamentosData, error: pagamentosError } = await supabase.from('imoveis_pagamentos').select('*');
             if (pagamentosError) throw pagamentosError;
 
-            // 4. Expenses (Legacy table 'expenses'?)
-            const { data: expsData, error: expsError } = await supabase.from('expenses').select('*');
-            if (expsError) console.warn("Expenses table check failed or empty", expsError);
+            // 4. Imoveis Gastos
+            const { data: gastosData, error: gastosError } = await supabase.from('imoveis_gastos').select('*');
+            if (gastosError) {
+                // Determine if table missing or empty. Suppress if just empty.
+                console.warn("Gastos fetch error (might be empty/missing):", gastosError.message);
+            }
 
             setImoveis(imoveisData || []);
             setEmprestimos(emprestimosData || []);
             setImoveisPagamentos(pagamentosData || []);
-            setExpenses(expsData || []); // Mapping needed? Interface matches DB snake_case? Expense interface is mixed.
-            // Expense interface: property_id, amount, description... likely matches DB if I updated types.
+            setImoveisGastos(gastosData || []);
 
         } catch (error) {
             console.error("Error fetching (Supabase):", error);
+            showToast("Erro ao sincronizar dados", "danger");
         } finally {
             setLoading(false);
         }
-    }, [user]);
+    }, [user, showToast]);
 
     // Initial Load
     useEffect(() => {
@@ -107,126 +113,168 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // --- ACTIONS (SUPABASE) ---
 
     // IMOVEIS
-    const adicionarImovel = async (imovel: Omit<Imovel, "id" | "created_at">) => {
+    const adicionarImovel = async (imovel: Omit<Imovel, "id" | "created_at" | "user_id">) => {
         if (!user) return;
-        const { error } = await supabase.from('imoveis').insert({
-            ...imovel,
-            user_id: user.id
-        });
-        if (error) throw error;
-        await fetchData();
+        try {
+            const { error } = await supabase.from('imoveis').insert({
+                ...imovel,
+                user_id: user.id
+            });
+            if (error) throw error;
+            showToast("Imóvel adicionado", "success");
+            await fetchData();
+        } catch (e: any) {
+            console.error(e);
+            showToast("Erro ao adicionar imóvel", "danger");
+        }
     };
 
     const atualizarImovel = async (id: string, updates: Partial<Imovel>) => {
-        const { error } = await supabase.from('imoveis').update(updates).eq('id', id);
-        if (error) throw error;
-        await fetchData();
+        try {
+            const { error } = await supabase.from('imoveis').update(updates).eq('id', id);
+            if (error) throw error;
+            showToast("Imóvel atualizado", "success");
+            await fetchData();
+        } catch (e: any) {
+            console.error(e);
+            showToast("Erro ao atualizar imóvel", "danger");
+        }
     };
 
     const deletarImovel = async (id: string) => {
-        const { error } = await supabase.from('imoveis').delete().eq('id', id);
-        if (error) throw error;
-        await fetchData();
+        try {
+            const { error } = await supabase.from('imoveis').delete().eq('id', id);
+            if (error) throw error;
+            showToast("Imóvel excluído", "success");
+            await fetchData();
+        } catch (e: any) {
+            console.error(e);
+            showToast("Erro ao excluir imóvel", "danger");
+        }
     };
 
-    // PAGAMENTOS
+    // PAGAMENTOS REFACTOR
     const receberPagamento = async (imovelId: string, dataPagamento: Date) => {
         if (!user) return;
 
-        // Calculate mes_ref (YYYY-MM-01)
+        // Strict MesRef: YYYY-MM-01
         const year = dataPagamento.getFullYear();
-        const month = dataPagamento.getMonth() + 1; // 1-based
+        const month = dataPagamento.getMonth() + 1;
         const mesRef = `${year}-${String(month).padStart(2, '0')}-01`;
 
-        // Check if already paid
-        const { data: existing } = await supabase
-            .from('imoveis_pagamentos')
-            .select('*')
-            .eq('imovel_id', imovelId)
-            .eq('mes_ref', mesRef)
-            .single();
+        try {
+            // 1. Check idempotency (Already Paid?)
+            // We use 'imoveisPagamentos' state for quick check, but DB check is safer for race conditions.
+            // Relying on UNIQUE constraint in DB to prevent duplicates, but let's check to give user feedback.
+            const existing = imoveisPagamentos.find(p => p.imovel_id === imovelId && p.mes_ref === mesRef);
 
-        if (existing && existing.status === 'pago') {
-            console.warn("Pagamento já realizado para este mês.");
-            return;
-        }
+            if (existing && existing.status === 'pago') {
+                showToast("Pagamento já registrado para este mês.", "warning");
+                return;
+            }
 
-        // Get Rent Value from Property to ensure consistency?
-        // Or update it? Logic: Save current rent value as `valor_pago`.
-        const { data: imovel } = await supabase.from('imoveis').select('valor_aluguel').eq('id', imovelId).single();
-        if (!imovel) throw new Error("Imovel not found");
+            // 2. Get current Rent Value
+            const imovel = imoveis.find(i => i.id === imovelId);
+            if (!imovel) throw new Error("Imóvel não encontrado localmente");
 
-        const payload = {
-            imovel_id: imovelId,
-            mes_ref: mesRef,
-            status: 'pago',
-            data_pagamento: new Date().toISOString(),
-            valor_pago: imovel.valor_aluguel,
-            user_id: user.id
-        };
+            const payload = {
+                imovel_id: imovelId,
+                mes_ref: mesRef,
+                status: 'pago' as const,
+                data_pagamento: new Date().toISOString(), // Save exact time of click
+                valor_pago: imovel.valor_aluguel,
+                user_id: user.id
+            };
 
-        if (existing) {
+            // 3. Upsert (or Insert if UNIQUE key works)
+            // Using upsert on (imovel_id, mes_ref)
             const { error } = await supabase
                 .from('imoveis_pagamentos')
-                .update(payload)
-                .eq('id', existing.id);
-            if (error) throw error;
-        } else {
-            const { error } = await supabase
-                .from('imoveis_pagamentos')
-                .insert(payload);
-            if (error) throw error;
-        }
+                .upsert(payload, { onConflict: 'imovel_id, mes_ref' });
 
-        await fetchData();
+            if (error) throw error;
+
+            showToast(`Pagamento recebido: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(imovel.valor_aluguel)}`, "success");
+            await fetchData();
+
+        } catch (e: any) {
+            console.error(e);
+            showToast("Erro ao processar pagamento", "danger");
+        }
+    };
+
+    // GASTOS (NEW)
+    const adicionarGasto = async (gasto: Omit<ImovelGasto, "id" | "created_at" | "user_id">) => {
+        if (!user) return;
+        try {
+            const { error } = await supabase.from('imoveis_gastos').insert({
+                ...gasto,
+                user_id: user.id
+            });
+            if (error) throw error;
+            showToast("Gasto registrado", "success");
+            await fetchData();
+        } catch (e: any) {
+            console.error(e);
+            showToast("Erro ao adicionar gasto", "danger");
+        }
+    };
+
+    const deletarGasto = async (id: string) => {
+        try {
+            const { error } = await supabase.from('imoveis_gastos').delete().eq('id', id);
+            if (error) throw error;
+            showToast("Gasto removido", "success");
+            await fetchData();
+        } catch (e: any) {
+            console.error(e);
+            showToast("Erro ao remover gasto", "danger");
+        }
     };
 
     // EMPRESTIMOS
-    const adicionarEmprestimo = async (emprestimo: Omit<Emprestimo, "id" | "created_at">) => {
+    const adicionarEmprestimo = async (emprestimo: Omit<Emprestimo, "id" | "created_at" | "user_id">) => {
         if (!user) return;
-        const { error } = await supabase.from('emprestimos').insert({
-            ...emprestimo,
-            user_id: user.id
-        });
-        if (error) throw error;
-        await fetchData();
+        try {
+            const { error } = await supabase.from('emprestimos').insert({
+                ...emprestimo,
+                user_id: user.id
+            });
+            if (error) throw error;
+            showToast("Empréstimo criado", "success");
+            await fetchData();
+        } catch (e: any) {
+            console.error(e);
+            showToast("Erro ao criar empréstimo", "danger");
+        }
     };
 
     const marcarEmprestimoPago = async (id: string) => {
-        const { error } = await supabase.from('emprestimos').update({
-            status: 'pago',
-            data_pagamento: new Date().toISOString()
-        }).eq('id', id);
-        if (error) throw error;
-        await fetchData();
+        try {
+            const { error } = await supabase.from('emprestimos').update({
+                status: 'pago',
+                data_pagamento: new Date().toISOString()
+            }).eq('id', id);
+
+            if (error) throw error;
+            showToast("Empréstimo marcado como pago", "success");
+            await fetchData();
+        } catch (e: any) {
+            console.error(e);
+            showToast("Erro ao atualizar empréstimo", "danger");
+        }
     };
 
     const deletarEmprestimo = async (id: string) => {
-        const { error } = await supabase.from('emprestimos').delete().eq('id', id);
-        if (error) throw error;
-        await fetchData();
-    };
-
-    // EXPENSES (Legacy/Mixed)
-    const addExpense = async (expense: Omit<Expense, "id">) => {
-        if (!user) return;
-        const { error } = await supabase.from('expenses').insert({
-            user_id: user.id,
-            property_id: expense.property_id,
-            month: expense.month,
-            year: expense.year,
-            amount: expense.amount,
-            category: expense.category,
-            description: expense.description
-        });
-        if (error) throw error;
-        await fetchData();
-    };
-
-    const deleteExpense = async (id: string) => {
-        const { error } = await supabase.from('expenses').delete().eq('id', id);
-        if (error) throw error;
-        await fetchData();
+        try {
+            const { error } = await supabase.from('emprestimos').delete().eq('id', id);
+            if (error) throw error;
+            showToast("Empréstimo excluído", "success");
+            await fetchData();
+        } catch (e: any) {
+            console.error(e);
+            showToast("Erro ao excluir empréstimo", "danger");
+        }
     };
 
     return (
@@ -234,22 +282,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             value={{
                 imoveis,
                 imoveisPagamentos,
+                imoveisGastos,
                 emprestimos,
-                expenses,
                 loading,
                 adicionarImovel,
                 atualizarImovel,
                 deletarImovel,
                 receberPagamento,
+                adicionarGasto,
+                deletarGasto,
                 adicionarEmprestimo,
                 marcarEmprestimoPago,
                 deletarEmprestimo,
-                addExpense,
-                deleteExpense
             }}
         >
             {children}
         </AppContext.Provider>
     );
 }
-
