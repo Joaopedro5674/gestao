@@ -76,6 +76,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             return;
         }
 
+        // Safety check if supabase is not initialized correctly (e.g. missing envs)
+        if (!supabase) {
+            console.error("Supabase client not initialized.");
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
         try {
             // 1. Imoveis

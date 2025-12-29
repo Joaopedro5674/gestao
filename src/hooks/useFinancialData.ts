@@ -9,15 +9,15 @@ export function useFinancialData() {
     // Fixed Month Ref for DB comparison (YYYY-MM-01)
     const currentMesRef = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
 
-    // VALID IDS (Single Source of Truth)
-    const validImovelIds = new Set(imoveis.map(i => i.id));
-    const validEmprestimoIds = new Set(emprestimos.map(e => e.id));
+    // VALID IDS (Single Source of Truth) - Handle potential null/undefined from context
+    const validImovelIds = new Set((imoveis || []).map(i => i?.id));
+    const validEmprestimoIds = new Set((emprestimos || []).map(e => e?.id));
 
     // --- DASHBOARD CALCULATIONS (CURRENT MONTH) ---
 
     // 1. Rental Revenue (Current Month Strict)
     // Sum 'valor_pago' from imoveis_pagamentos where mes_ref matches current month
-    const rentalRevenue = imoveisPagamentos
+    const rentalRevenue = (imoveisPagamentos || [])
         .filter(p => {
             if (!validImovelIds.has(p.imovel_id)) return false;
             if (p.status !== 'pago') return false;
@@ -27,7 +27,7 @@ export function useFinancialData() {
 
     // 2. Rental Expenses (Current Month Strict)
     // Sum 'valor' from imoveis_gastos where mes_ref matches current month
-    const rentalExpenses = imoveisGastos
+    const rentalExpenses = (imoveisGastos || [])
         .filter(e => {
             if (!validImovelIds.has(e.imovel_id)) return false;
             return e.mes_ref === currentMesRef;
@@ -39,7 +39,7 @@ export function useFinancialData() {
     // 3. Loans Interest (Contracted - Active Portfolio Value)
     // Sum 'juros_total_contratado' for ALL ACTIVE loans.
     // Represents the user's "Asset Value" in terms of future interest.
-    const totalLoanInterestContracted = emprestimos
+    const totalLoanInterestContracted = (emprestimos || [])
         .filter(e => validEmprestimoIds.has(e.id))
         .filter(e => e.status === 'ativo')
         .reduce((acc, e) => acc + e.juros_total_contratado, 0);
@@ -47,7 +47,7 @@ export function useFinancialData() {
     // 4. Loan Revenue (Total Received in Current Month)
     // Optional: How much cash flow from loans this month?
     // Based on 'data_pagamento'.
-    const loanRevenue = emprestimos
+    const loanRevenue = (emprestimos || [])
         .filter(e => validEmprestimoIds.has(e.id))
         .filter(e => e.status === 'pago')
         .filter(e => {
