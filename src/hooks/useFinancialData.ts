@@ -1,4 +1,3 @@
-```
 import { useApp } from "@/context/AppContext";
 
 export function useFinancialData() {
@@ -8,7 +7,7 @@ export function useFinancialData() {
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth(); // 0-11
     // Fixed Month Ref for DB comparison (YYYY-MM-01)
-    const currentMesRef = `${ currentYear } -${ String(currentMonth + 1).padStart(2, '0') }-01`;
+    const currentMesRef = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
 
     // VALID IDS (Single Source of Truth)
     const validImovelIds = new Set(imoveis.map(i => i.id));
@@ -55,7 +54,7 @@ export function useFinancialData() {
 
     // Also calculating Realized Interest this month if needed?
     // Prompt says "Dashboard deve... Somar... Juros contratados".
-    // It implies the "Potential" value.
+    // It implies the "Potential" value. 
     // If user wanted "Received", they would say "Juros recebidos".
 
     const loanRevenue = emprestimos
@@ -63,9 +62,9 @@ export function useFinancialData() {
         .filter(e => e.status === 'pago')
         // Filter by payment date in current month?
         .filter(e => {
-             if (!e.data_pagamento) return false;
-             const d = new Date(e.data_pagamento);
-             return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+            if (!e.data_pagamento) return false;
+            const d = new Date(e.data_pagamento);
+            return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
         })
         .reduce((acc, e) => acc + (e.valor_emprestado + e.juros_total_contratado), 0); // Total received
 
@@ -99,62 +98,59 @@ export function useFinancialData() {
 
         // For this month, list all properties
         imoveis.forEach(imovel => {
-             // Find payment
-             const payment = imoveisPagamentos.find(p =>
+            // Find payment
+            const payment = imoveisPagamentos.find(p =>
                 p.imovel_id === imovel.id &&
-                p.mes_ref === `${ ym }-01`
-             );
+                p.mes_ref === `${ym}-01`
+            );
 
-             // Find expenses
-             const monthExpenses = expenses.filter(e =>
+            // Find expenses
+            const monthExpenses = expenses.filter(e =>
                 e.property_id === imovel.id &&
                 e.year === y &&
                 e.month === (m - 1) // Expense assumed 0-11
-             );
+            );
 
-             const totalExpense = monthExpenses.reduce((sum, e) => sum + e.amount, 0);
-             const isPaid = payment?.status === 'pago';
-             // Let's show Rent Value if paid, else 0 for "Value Received".
-             // But for "Spreadsheet" usually we want to see the status.
+            const totalExpense = monthExpenses.reduce((sum, e) => sum + e.amount, 0);
+            const isPaid = payment?.status === 'pago';
 
-             rentalSpreadsheetData.push({
-                 property: imovel.nome,
-                 month: `${ String(m).padStart(2, '0') }/${y}`,
-rentValue: imovel.valor_aluguel, // Contract value
-    status: isPaid ? 'Pago' : 'Pendente',
-        paymentDate: payment?.data_pagamento ? new Date(payment.data_pagamento).toLocaleDateString('pt-BR') : '-',
-            expenses: totalExpense,
+            rentalSpreadsheetData.push({
+                property: imovel.nome,
+                month: `${String(m).padStart(2, '0')}/${y}`,
+                rentValue: imovel.valor_aluguel, // Contract value
+                status: isPaid ? 'Pago' : 'Pendente',
+                paymentDate: payment?.data_pagamento ? new Date(payment.data_pagamento).toLocaleDateString('pt-BR') : '-',
+                expenses: totalExpense,
                 netProfit: (isPaid ? (payment.valor_pago || 0) : 0) - totalExpense
-             });
+            });
         });
     });
 
-const loanSpreadsheetData = emprestimos.map(e => ({
-    client: e.cliente_nome,
-    principal: e.valor_emprestado,
-    rate: `${e.juros_mensal}%`,
-    days: e.dias_contratados,
-    interest: e.juros_total_contratado,
-    total: e.valor_emprestado + e.juros_total_contratado, // Total Contracted
-    status: e.status === 'pago' ? 'Recebido' : 'Ativo',
-    dateReceived: e.data_pagamento ? new Date(e.data_pagamento).toLocaleDateString('pt-BR') : '-'
-}));
+    const loanSpreadsheetData = emprestimos.map(e => ({
+        client: e.cliente_nome,
+        principal: e.valor_emprestado,
+        rate: `${e.juros_mensal}%`,
+        days: e.dias_contratados,
+        interest: e.juros_total_contratado,
+        total: e.valor_emprestado + e.juros_total_contratado, // Total Contracted
+        status: e.status === 'pago' ? 'Recebido' : 'Ativo',
+        dateReceived: e.data_pagamento ? new Date(e.data_pagamento).toLocaleDateString('pt-BR') : '-'
+    }));
 
-return {
-    loading,
-    dashboard: {
-        rentalRevenue,
-        rentalExpenses,
-        rentalNetProfit,
-        loanRevenue,
-        totalLoanInterestContracted, // Replacing "totalLoanInterestProfit" with explicit Contracted sum
-        validImovelIds,
-        validEmprestimoIds
-    },
-    spreadsheet: {
-        rentals: rentalSpreadsheetData,
-        loans: loanSpreadsheetData
-    }
-};
+    return {
+        loading,
+        dashboard: {
+            rentalRevenue,
+            rentalExpenses,
+            rentalNetProfit,
+            loanRevenue,
+            totalLoanInterestContracted, // Replacing "totalLoanInterestProfit" with explicit Contracted sum
+            validImovelIds,
+            validEmprestimoIds
+        },
+        spreadsheet: {
+            rentals: rentalSpreadsheetData,
+            loans: loanSpreadsheetData
+        }
+    };
 }
-```
