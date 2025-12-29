@@ -211,12 +211,19 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
                                 justifyContent: 'center',
                                 gap: '6px',
                                 fontWeight: '600',
-                                fontSize: '0.9rem',
+                                fontSize: '0.8rem',
                                 borderRadius: 'var(--radius-md)',
-                                opacity: 0.8
+                                opacity: 1
                             }}
                         >
-                            <CheckCircle size={16} /> Pagamento recebido
+                            <CheckCircle size={16} />
+                            {(() => {
+                                const payment = imoveisPagamentos.find(p => p.imovel_id === imovel.id && p.status === 'pago' && p.mes_ref === currentMesRef);
+                                if (payment && payment.data_pagamento) {
+                                    return `Pago em ${new Date(payment.data_pagamento).toLocaleDateString('pt-BR')}`;
+                                }
+                                return 'Pagamento recebido';
+                            })()}
                         </button>
                     )}
 

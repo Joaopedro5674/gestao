@@ -29,6 +29,8 @@ interface AppContextType {
     adicionarEmprestimo: (emprestimo: Omit<Emprestimo, "id" | "created_at" | "user_id">) => Promise<void>;
     marcarEmprestimoPago: (id: string) => Promise<void>;
     deletarEmprestimo: (id: string) => Promise<void>;
+
+    refreshData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType>({
@@ -46,6 +48,7 @@ const AppContext = createContext<AppContextType>({
     adicionarEmprestimo: async () => { },
     marcarEmprestimoPago: async () => { },
     deletarEmprestimo: async () => { },
+    refreshData: async () => { },
 });
 
 export const useApp = () => useContext(AppContext);
@@ -99,7 +102,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         } catch (error) {
             console.error("Error fetching (Supabase):", error);
-            showToast("Erro ao sincronizar dados", "danger");
+            showToast("Erro ao sincronizar dados", "error");
         } finally {
             setLoading(false);
         }
@@ -125,7 +128,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             await fetchData();
         } catch (e: any) {
             console.error(e);
-            showToast("Erro ao adicionar imóvel", "danger");
+            showToast("Erro ao adicionar imóvel", "error");
         }
     };
 
@@ -137,7 +140,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             await fetchData();
         } catch (e: any) {
             console.error(e);
-            showToast("Erro ao atualizar imóvel", "danger");
+            showToast("Erro ao atualizar imóvel", "error");
         }
     };
 
@@ -149,7 +152,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             await fetchData();
         } catch (e: any) {
             console.error(e);
-            showToast("Erro ao excluir imóvel", "danger");
+            showToast("Erro ao excluir imóvel", "error");
         }
     };
 
@@ -169,7 +172,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             const existing = imoveisPagamentos.find(p => p.imovel_id === imovelId && p.mes_ref === mesRef);
 
             if (existing && existing.status === 'pago') {
-                showToast("Pagamento já registrado para este mês.", "warning");
+                showToast("Pagamento já registrado para este mês.", "info");
                 return;
             }
 
@@ -199,7 +202,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         } catch (e: any) {
             console.error(e);
-            showToast("Erro ao processar pagamento", "danger");
+            showToast("Erro ao processar pagamento", "error");
         }
     };
 
@@ -216,7 +219,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             await fetchData();
         } catch (e: any) {
             console.error(e);
-            showToast("Erro ao adicionar gasto", "danger");
+            showToast("Erro ao adicionar gasto", "error");
         }
     };
 
@@ -228,7 +231,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             await fetchData();
         } catch (e: any) {
             console.error(e);
-            showToast("Erro ao remover gasto", "danger");
+            showToast("Erro ao remover gasto", "error");
         }
     };
 
@@ -245,7 +248,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             await fetchData();
         } catch (e: any) {
             console.error(e);
-            showToast("Erro ao criar empréstimo", "danger");
+            showToast("Erro ao criar empréstimo", "error");
         }
     };
 
@@ -261,7 +264,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             await fetchData();
         } catch (e: any) {
             console.error(e);
-            showToast("Erro ao atualizar empréstimo", "danger");
+            showToast("Erro ao atualizar empréstimo", "error");
         }
     };
 
@@ -273,7 +276,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             await fetchData();
         } catch (e: any) {
             console.error(e);
-            showToast("Erro ao excluir empréstimo", "danger");
+            showToast("Erro ao excluir empréstimo", "error");
         }
     };
 
@@ -294,6 +297,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 adicionarEmprestimo,
                 marcarEmprestimoPago,
                 deletarEmprestimo,
+                refreshData: fetchData
             }}
         >
             {children}

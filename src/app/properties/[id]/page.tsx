@@ -11,7 +11,7 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
     const resolvedParams = use(params);
     const { id } = resolvedParams;
 
-    const { imoveis, imoveisPagamentos, receberPagamento } = useApp();
+    const { imoveis, imoveisPagamentos, imoveisGastos, receberPagamento } = useApp();
     const { showToast } = useToast();
 
     const [imovel, setImovel] = useState<Imovel | null>(null);
@@ -122,26 +122,49 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
                     {history.map((payment) => {
-                        // Parse mes_ref YYYY-MM-01 from DB string
-                        // payment.mes_ref is a string 'YYYY-MM-DD' (or YYYY-MM-01).
-                        // Create date accurately without timezone shift issues for display
                         const [y, m, d] = payment.mes_ref.split('-');
                         const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
                         const monthLabel = dateObj.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
 
+                        // Calculate Expenses for this month reference
+                        const monthExpenses = imoveisGastos.filter(g =>
+                            g.imovel_id === id && g.mes_ref === payment.mes_ref
+                        );
+                        const totalExpense = monthExpenses.reduce((acc, curr) => acc + curr.valor, 0);
+                        const gross = payment.valor_pago || 0;
+                        const net = gross - totalExpense;
+
                         return (
-                            <div key={payment.id} className="card" style={{ padding: 'var(--space-sm) var(--space-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div>
-                                    <div style={{ fontWeight: '600', textTransform: 'capitalize' }}>
-                                        {monthLabel}
+                            <div key={payment.id} className="card" style={{ padding: 'var(--space-sm) var(--space-md)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: '600', textTransform: 'capitalize' }}>
+                                            {monthLabel}
+                                        </div>
+                                        <div style={{ fontSize: '0.8rem', color: payment.status === 'pendente' ? 'var(--color-warning)' : 'var(--color-success)' }}>
+                                            {payment.status === 'pago' ? 'Pago' : 'Pendente'}
+                                            {payment.data_pagamento && ` em ${new Date(payment.data_pagamento).toLocaleDateString('pt-BR')}`}
+                                        </div>
                                     </div>
-                                    <div style={{ fontSize: '0.8rem', color: payment.status === 'pendente' ? 'var(--color-warning)' : 'var(--color-success)' }}>
-                                        {payment.status === 'pago' ? 'Pago' : 'Pendente'}
-                                        {payment.data_pagamento && ` em ${new Date(payment.data_pagamento).toLocaleDateString('pt-BR')}`}
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)' }}>Lucro Líquido</div>
+                                        <div style={{ fontWeight: '700', color: 'var(--color-text-primary)' }}>
+                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(net)}
+                                        </div>
                                     </div>
                                 </div>
-                                <div style={{ fontWeight: '700' }}>
-                                    {payment.valor_pago ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.valor_pago) : '-'}
+                                {/* Details: Income vs Expense */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', paddingTop: '8px', borderTop: '1px solid var(--color-border)' }}>
+                                    <span style={{ color: 'var(--color-success)' }}>
+                                        + {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(gross)} (Aluguel)
+                                    </span>
+                                    {totalExpense > 0 ? (
+                                        <span style={{ color: 'var(--color-danger)' }}>
+                                            - {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalExpense)} (Gastos)
+                                        </span>
+                                    ) : (
+                                        <span style={{ color: 'var(--color-text-tertiary)' }}>Sem gastos</span>
+                                    )}
                                 </div>
                             </div>
                         );

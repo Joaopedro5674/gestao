@@ -11,7 +11,7 @@ import { exportToCSV } from "@/utils/exportUtils";
 
 
 export default function Home() {
-  const { imoveis, emprestimos, imoveisPagamentos, loading } = useApp();
+  const { imoveis, emprestimos, imoveisPagamentos, refreshData, loading } = useApp();
   const { showToast } = useToast();
   const { signOut } = useAuth(); // Auth Hook
 
@@ -36,8 +36,9 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
+    await refreshData();
     setTimeout(() => {
       setRefreshKey(prev => prev + 1);
       setNow(new Date());
