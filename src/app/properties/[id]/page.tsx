@@ -30,7 +30,12 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
         if (id) {
             const propertyPayments = rentPayments.filter((p) => p.propertyId === id);
             // Sort by date desc
-            propertyPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            // Sort by paidAt desc (or create date from month/year)
+            propertyPayments.sort((a, b) => {
+                const dateA = a.paidAt ? new Date(a.paidAt).getTime() : 0;
+                const dateB = b.paidAt ? new Date(b.paidAt).getTime() : 0;
+                return dateB - dateA;
+            });
             setHistory(propertyPayments);
         }
     }, [id, rentPayments]);
@@ -58,7 +63,7 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
             <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
                 <div style={{ marginBottom: 'var(--space-sm)' }}>
                     <span className="label">Endereço</span>
-                    <div style={{ fontSize: '1rem' }}>{property.address}</div>
+                    <div style={{ fontSize: '1rem' }}>-</div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)', marginTop: 'var(--space-md)' }}>
@@ -92,14 +97,14 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                         <div key={payment.id} className="card" style={{ padding: 'var(--space-sm) var(--space-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div>
                                 <div style={{ fontWeight: '600' }}>
-                                    {new Date(payment.date).toLocaleDateString('pt-BR')}
+                                    {payment.paidAt ? new Date(payment.paidAt).toLocaleDateString('pt-BR') : `${payment.month + 1}/${payment.year}`}
                                 </div>
-                                <div style={{ fontSize: '0.8rem', color: payment.status === 'late' ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                                    {payment.status === 'paid' ? 'Pago' : payment.status === 'late' ? 'Em Atraso' : 'Parcial'}
+                                <div style={{ fontSize: '0.8rem', color: payment.status === 'pending' ? 'var(--color-warning)' : 'var(--color-success)' }}>
+                                    {payment.status === 'paid' ? 'Pago' : 'Pendente'}
                                 </div>
                             </div>
                             <div style={{ fontWeight: '700' }}>
-                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount)}
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(property.rentAmount)}
                             </div>
                         </div>
                     ))}

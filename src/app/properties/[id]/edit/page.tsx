@@ -39,11 +39,11 @@ export default function EditPropertyPage({ params }: { params: Promise<{ id: str
         e.preventDefault();
         if (!property) return;
 
-        updateProperty({
-            ...property,
+        updateProperty(property.id, {
             name: formData.name,
             rentAmount: parseFloat(formData.rentAmount.replace(',', '.')),
             paymentDay: parseInt(formData.paymentDay) || 10,
+            isActive: property.isActive
         });
 
         router.push("/properties");

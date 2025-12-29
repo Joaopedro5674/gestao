@@ -22,12 +22,11 @@ export default function NewPropertyPage() {
         if (!formData.name || !formData.rentAmount) return;
 
         addProperty({
-            id: crypto.randomUUID(),
             name: formData.name,
-            address: formData.address,
             rentAmount: parseFloat(formData.rentAmount.replace(',', '.')), // Handle PT-BR decimal
             paymentDay: parseInt(formData.paymentDay) || 10,
             isActive: true,
+            userId: "current-user-id" // Placeholder, will be overwritten by AppContext/Supabase
         });
 
         router.push("/properties");

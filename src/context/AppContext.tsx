@@ -19,6 +19,7 @@ interface AppContextType {
 
     // Payment Actions
     processMonthlyPayment: (propertyId: string, month: number, year: number) => Promise<void>;
+    addRentPayment: (payment: any) => Promise<void>; // Using any for quick fix, strict type later if needed
 
     // Expense Actions
     addExpense: (expense: Omit<Expense, "id">) => Promise<void>;
@@ -26,6 +27,7 @@ interface AppContextType {
 
     // Loan Actions
     addLoan: (loan: Omit<Loan, "id">) => Promise<void>;
+    updateLoan: (loan: Loan) => Promise<void>;
     markLoanAsPaid: (id: string) => Promise<void>;
     deleteLoan: (id: string) => Promise<void>;
 }
@@ -40,9 +42,11 @@ const AppContext = createContext<AppContextType>({
     updateProperty: async () => { },
     deleteProperty: async () => { },
     processMonthlyPayment: async () => { },
+    addRentPayment: async () => { },
     addExpense: async () => { },
     deleteExpense: async () => { },
     addLoan: async () => { },
+    updateLoan: async () => { },
     markLoanAsPaid: async () => { },
     deleteLoan: async () => { },
 });
@@ -107,7 +111,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 startDate: l.start_date,
                 dueDate: l.due_date,
                 status: l.status as any,
-                paidAt: l.paid_at
+                paidAt: l.paid_at,
+                paymentDate: l.payment_date,
+                finalTotalDays: l.final_total_days,
+                finalTotalPaid: l.final_total_paid,
+                finalInterestAmount: l.final_interest_amount
             })));
 
             setRentPayments((rentsData || []).map(r => ({
@@ -205,6 +213,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         await fetchData();
     };
 
+    const addRentPayment = async (payment: any) => {
+        if (!user) return;
+        const date = new Date(payment.date);
+        const { error } = await supabase.from('rent_payments').insert({
+            user_id: user.id,
+            property_id: payment.propertyId,
+            month: date.getMonth(),
+            year: date.getFullYear(),
+            status: payment.status,
+            paid_at: payment.date, // storing full date as paid_at
+            due_date: payment.dueDate
+        });
+        if (error) throw error;
+        await fetchData();
+    };
+
     const addExpense = async (expense: Omit<Expense, "id">) => {
         if (!user) return;
         const { error } = await supabase.from('expenses').insert({
@@ -253,6 +277,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         await fetchData();
     };
 
+    const updateLoan = async (loan: Loan) => {
+        const { error } = await supabase.from('loans').update({
+            borrower_name: loan.borrowerName,
+            amount_lent: loan.principal,
+            monthly_interest_rate: loan.monthlyInterestRate,
+            start_date: loan.startDate,
+            due_date: loan.dueDate
+        }).eq('id', loan.id);
+        if (error) throw error;
+        await fetchData();
+    };
+
     const deleteLoan = async (id: string) => {
         const { error } = await supabase.from('loans').delete().eq('id', id);
         if (error) throw error;
@@ -271,9 +307,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 updateProperty,
                 deleteProperty,
                 processMonthlyPayment,
+                addRentPayment,
                 addExpense,
                 deleteExpense,
                 addLoan,
+                updateLoan,
                 markLoanAsPaid,
                 deleteLoan
             }}

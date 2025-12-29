@@ -69,7 +69,7 @@ export default function Home() {
   // Rental Alerts
   properties.filter(p => p.isActive).forEach(property => {
     const isPaid = rentPayments.some(p => {
-      if (p.propertyId !== property.id || p.status !== 'paid') return false;
+      if (p.propertyId !== property.id || p.status !== 'paid' || !p.dueDate) return false;
       const parts = p.dueDate.split('-');
       const pYear = parseInt(parts[0]);
       const pMonth = parseInt(parts[1]) - 1;
@@ -103,6 +103,7 @@ export default function Home() {
 
   // Loan Alerts
   loans.filter(l => l.status === 'active' && l.dueDate).forEach(loan => {
+    if (!loan.dueDate) return; // Ensure dueDate exists before proceeding
     const due = new Date(loan.dueDate + 'T12:00:00');
     due.setHours(0, 0, 0, 0);
     const today = new Date();

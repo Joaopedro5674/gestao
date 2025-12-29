@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         session,
         loading,
-        signInWithEmail: async (email) => { return { error: null } }, // Placeholder, logic will be in page for now or here? 
+        signInWithEmail,
         // Better to expose database auth methods directly or wrap them? 
         // Let's expose a simple wrapper or just use supabase directly in the page for the action? 
         // Context is mainly for STATE (user/session). Actions can be direct.

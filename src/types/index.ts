@@ -45,4 +45,9 @@ export interface Loan {
     dueDate: string;            // db: due_date
     status: 'active' | 'paid' | 'overdue';
     paidAt?: string;            // db: paid_at
+    paymentDate?: string;       // db: payment_date
+    finalTotalDays?: number;    // db: final_total_days
+    finalTotalPaid?: number;    // db: final_total_paid
+    finalInterestAmount?: number; // db: final_interest_amount
+    displayId?: string;         // db: display_id (or computed)
 }

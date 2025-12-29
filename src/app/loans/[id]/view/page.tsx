@@ -48,7 +48,7 @@ export default function ViewLoanPage({ params }: { params: Promise<{ id: string 
         let totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         if (totalDays < 1) totalDays = 1;
 
-        const dailyRate = loan.interestRate / 30;
+        const dailyRate = loan.monthlyInterestRate / 30;
         const interest = loan.principal * (dailyRate / 100) * totalDays;
         const total = loan.principal + interest;
 
@@ -175,7 +175,7 @@ export default function ViewLoanPage({ params }: { params: Promise<{ id: string 
                     <div>
                         <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Juros Mensal</label>
                         <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>
-                            {loan.interestRate}% a.m.
+                            {loan.monthlyInterestRate}% a.m.
                         </div>
                     </div>
                     <div>

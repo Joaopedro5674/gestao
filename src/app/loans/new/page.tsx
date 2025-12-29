@@ -44,15 +44,15 @@ export default function NewLoanPage() {
         if (!formData.borrowerName || !principal || !formData.dueDate) return;
 
         addLoan({
-            id: Math.random().toString(36).substring(2, 11) + Date.now().toString(36),
             borrowerName: formData.borrowerName,
             principal: principal,
-            interestRate: rate,
+            monthlyInterestRate: rate,
+            contractDays: totalDays,
+            contractedInterest: interest,
+            totalValue: total,
             startDate: formData.startDate,
             dueDate: formData.dueDate,
-            status: 'active',
-            contractedDays: totalDays,
-            contractedInterest: interest
+            status: 'active'
         });
 
         router.push("/loans");

@@ -27,9 +27,10 @@ export default function PropertyReportsPage({ params }: { params: Promise<{ id: 
             const propertyPayments = rentPayments.filter(p => p.propertyId === id);
 
             // Sort by date desc
+            // Sort by month/year desc
             propertyPayments.sort((a, b) => {
-                // Sort by dueDate usually for billing cycles
-                return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
+                if (b.year !== a.year) return b.year - a.year;
+                return b.month - a.month;
             });
 
             setHistory(propertyPayments.slice(0, 12));
@@ -57,20 +58,18 @@ export default function PropertyReportsPage({ params }: { params: Promise<{ id: 
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
                     {history.map((payment) => {
-                        const date = new Date(payment.dueDate);
-                        const monthYear = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-                        const pYear = date.getFullYear();
-                        const pMonth = date.getMonth();
+                        const monthYear = `${payment.month + 1}/${payment.year}`;
+                        const pYear = payment.year;
+                        const pMonth = payment.month;
 
                         // Calculate real expenses for this month
                         const monthExpenses = expenses.filter(e => {
                             if (e.propertyId !== property.id) return false;
-                            const eDate = new Date(e.date + 'T00:00:00');
-                            return eDate.getFullYear() === pYear && eDate.getMonth() === pMonth;
+                            return e.year === pYear && e.month === pMonth;
                         });
 
                         const totalExpenses = monthExpenses.reduce((sum, e) => sum + e.amount, 0);
-                        const profit = payment.amount - totalExpenses;
+                        const profit = property.rentAmount - totalExpenses;
 
                         const isPaid = payment.status === 'paid';
 
@@ -93,7 +92,7 @@ export default function PropertyReportsPage({ params }: { params: Promise<{ id: 
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', fontSize: '0.9rem', gap: '8px', textAlign: 'center' }}>
                                     <div>
                                         <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Aluguel</p>
-                                        <p style={{ fontWeight: '600' }}>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount)}</p>
+                                        <p style={{ fontWeight: '600' }}>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(property.rentAmount)}</p>
                                     </div>
                                     <div>
                                         <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Gastos</p>

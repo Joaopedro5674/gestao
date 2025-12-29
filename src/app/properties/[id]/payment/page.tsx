@@ -59,8 +59,9 @@ export default function NewPaymentPage({ params }: { params: Promise<{ id: strin
                 <h1>Registrar Pagamento</h1>
             </header>
 
-            <div style={{ marginBottom: 'var(--space-md)', fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                Imóvel: <strong>{property.name}</strong>
+            <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
+                <div style={{ fontWeight: '600' }}>{property.name}</div>
+                <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>Vencimento dia {property.paymentDay}</div>
             </div>
 
             <form onSubmit={handleSubmit} className="card">

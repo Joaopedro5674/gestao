@@ -29,7 +29,7 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
             setFormData({
                 borrowerName: found.borrowerName,
                 principal: found.principal.toString().replace('.', ','),
-                interestRate: found.interestRate.toString().replace('.', ','),
+                interestRate: found.monthlyInterestRate.toString().replace('.', ','),
                 startDate: found.startDate,
                 dueDate: found.dueDate
             });
@@ -81,7 +81,7 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
             ...loan,
             borrowerName: formData.borrowerName,
             principal: principal,
-            interestRate: rate,
+            monthlyInterestRate: rate,
             startDate: formData.startDate,
             dueDate: formData.dueDate
         });
