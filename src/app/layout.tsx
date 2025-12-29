@@ -30,6 +30,8 @@ import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ToastProvider } from "@/components/ToastProvider";
 
+import SystemHealthCheck from "@/components/SystemHealthCheck";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -38,6 +40,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        <SystemHealthCheck />
         <AuthProvider>
           <AppProvider>
             <ToastProvider>

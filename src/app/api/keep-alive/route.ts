@@ -19,22 +19,28 @@ export async function GET() {
         // initializing specific client with Service Role Key
         const supabase = createClient(supabaseUrl, supabaseKey);
 
-        // 3. QUERY PERMITIDA (APENAS LEITURA)
-        // "SELECT id FROM imoveis LIMIT 1" -> Mapping 'imoveis' to 'properties' based on project structure
-        const { error } = await supabase
-            .from('properties') // Using 'properties' table as identified in AppContext
-            .select('id')
-            .limit(1);
+        // 3. QUERY PERMITIDA (APENAS LEITURA / UPDATE LAST PING)
 
-        if (error) {
-            console.error('Keep-Alive Cron Error:', error);
-            // 7. TOLERÂNCIA A ERRO: Return 200 even on API error to avoid noisy alerts if desired, 
-            // though typically 500 helps identifying issues. User asked for "erro silencioso para o cron".
-            // Returning 200 ensures Vercel Cron considers it a success.
-            return NextResponse.json({ ok: true, note: 'error_suppressed' }, { status: 200 });
+        // Fallback: Update system_health table
+        // Using UPSERT on known ID to minimal footprint
+        const SYSTEM_ID = '00000000-0000-0000-0000-000000000001';
+
+        // First, try plain read (Lightweight)
+        await supabase.from('properties').select('id').limit(1);
+
+        // Then, touch the system_health table
+        const { error: healthError } = await supabase
+            .from('system_health')
+            .upsert({
+                id: SYSTEM_ID,
+                last_ping_at: new Date().toISOString()
+            }, { onConflict: 'id' });
+
+        if (healthError) {
+            console.error('Keep-Alive Health Update Error:', healthError);
+            // Ignore error, goal is just to touch DB.
         }
 
-        // 2. Retornar 200 OK
         return NextResponse.json({ ok: true, timestamp: new Date().toISOString() }, { status: 200 });
 
     } catch (error) {
