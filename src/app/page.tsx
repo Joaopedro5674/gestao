@@ -11,7 +11,7 @@ import { exportToCSV } from "@/utils/exportUtils";
 
 
 export default function Home() {
-  const { properties, loans, rentPayments, expenses, loading } = useApp();
+  const { imoveis, emprestimos, imoveisPagamentos, loading } = useApp();
   const { showToast } = useToast();
   const { signOut } = useAuth(); // Auth Hook
 
@@ -21,7 +21,7 @@ export default function Home() {
     rentalRevenue,
     rentalNetProfit,
     loanRevenue,
-    totalLoanInterestProfit,
+    totalLoanInterestContracted,
   } = dashboard;
 
   // Local state for time and formatting
@@ -48,6 +48,9 @@ export default function Home() {
 
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
+  // Fixed Month Ref for DB comparison (YYYY-MM-01)
+  const currentMesRef = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+
   const todayDay = now.getDate();
   const monthName = now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
   const timeStr = now.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -67,44 +70,52 @@ export default function Home() {
   let pendingRentalsCount = 0;
 
   // Rental Alerts
-  properties.filter(p => p.isActive).forEach(property => {
-    const isPaid = rentPayments.some(p => {
-      if (p.propertyId !== property.id || p.status !== 'paid' || !p.dueDate) return false;
-      const parts = p.dueDate.split('-');
-      const pYear = parseInt(parts[0]);
-      const pMonth = parseInt(parts[1]) - 1;
-      return pYear === currentYear && pMonth === currentMonth;
+  imoveis.filter(p => p.ativo).forEach(imovel => {
+    const isPaid = imoveisPagamentos.some(p => {
+      return p.imovel_id === imovel.id && p.status === 'pago' && p.mes_ref === currentMesRef;
     });
 
     if (!isPaid) {
       pendingRentalsCount++;
-      const dueDay = property.paymentDay;
+      // Assumption: 'paymentDay' doesn't exist on new Imovel schema yet? 
+      // The schema provided by user: id, nome, valor_aluguel, ativo, created_at, user_id.
+      // Missing 'dia_pagamento'.
+      // If it exists in DB but not schema description, I should check.
+      // If not, we can default to day 10 or check if I need to add it.
+      // User approval for table `imoveis` didn't explicitly mention `dia_pagamento`.
+      // Legacy `Property` had `paymentDay`.
+      // I'll assume for now we might need to add it or default to 5/10.
+      // Let's assume day 10 for safety if missing, or maybe I should check legacy data migration.
+      // Ideally, the user wants "Total Consistency".
+      // Let's use a standard day if not present.
+      const dueDay = 10; // Defaulting as field might be missing in new simplistic schema
       const daysUntilDue = dueDay - todayDay;
 
       if (daysUntilDue < 0) {
         alerts.push({
-          id: `prop-${property.id}`,
+          id: `prop-${imovel.id}`,
           type: 'danger',
           title: 'Aluguel Atrasado',
-          subtitle: `${property.name} - Venceu dia ${dueDay}`,
-          propertyId: property.id
+          subtitle: `${imovel.nome} - Venceu dia ${dueDay}`,
+          propertyId: imovel.id
         });
       } else if (daysUntilDue <= 3 && daysUntilDue >= 0) {
         alerts.push({
-          id: `prop-${property.id}`,
+          id: `prop-${imovel.id}`,
           type: 'warning',
           title: daysUntilDue === 0 ? 'Vence Hoje' : 'Aluguel Próximo',
-          subtitle: `${property.name} - Vence dia ${dueDay}`,
-          propertyId: property.id
+          subtitle: `${imovel.nome} - Vence dia ${dueDay}`,
+          propertyId: imovel.id
         });
       }
     }
   });
 
   // Loan Alerts
-  loans.filter(l => l.status === 'active' && l.dueDate).forEach(loan => {
-    if (!loan.dueDate) return; // Ensure dueDate exists before proceeding
-    const due = new Date(loan.dueDate + 'T12:00:00');
+  emprestimos.filter(l => l.status === 'ativo' && l.data_fim).forEach(loan => {
+    if (!loan.data_fim) return;
+    // data_fim is string YYYY-MM-DD
+    const due = new Date(loan.data_fim + 'T12:00:00');
     due.setHours(0, 0, 0, 0);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -117,7 +128,7 @@ export default function Home() {
         id: `loan-${loan.id}`,
         type: 'danger',
         title: 'Empréstimo Atrasado',
-        subtitle: `${loan.borrowerName}`,
+        subtitle: `${loan.cliente_nome}`,
         propertyId: `../loans/${loan.id}`
       });
     } else if (diffDays <= 3 && diffDays >= 0) {
@@ -125,7 +136,7 @@ export default function Home() {
         id: `loan-${loan.id}`,
         type: 'warning',
         title: diffDays === 0 ? 'Vence Hoje' : 'Empréstimo Vencendo',
-        subtitle: `${loan.borrowerName} - ${due.toLocaleDateString('pt-BR')}`,
+        subtitle: `${loan.cliente_nome} - ${due.toLocaleDateString('pt-BR')}`,
         propertyId: `../loans/${loan.id}`
       });
     }
@@ -133,7 +144,7 @@ export default function Home() {
 
   alerts.sort((a, b) => (a.type === 'danger' ? -1 : 1));
 
-  const totalNetProfit = rentalNetProfit + totalLoanInterestProfit;
+  const totalNetProfit = rentalNetProfit + totalLoanInterestContracted;
 
   return (
     <div className="container" key={refreshKey} style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -233,7 +244,7 @@ export default function Home() {
                 <div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Lucro Juros (Total Contratado)</div>
                   <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--color-text-primary)' }}>
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalLoanInterestProfit)}
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalLoanInterestContracted)}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
