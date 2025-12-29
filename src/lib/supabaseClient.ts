@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
 // STRICT: Only use NEXT_PUBLIC_ keys here.
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
 
 if (typeof window !== 'undefined') {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-        console.error("CRITICAL: Supabase Public Keys missing. Check environment variables.");
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        console.warn("WARNING: Supabase Public Keys missing in environment.");
     }
 }
 
