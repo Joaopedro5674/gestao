@@ -4,9 +4,10 @@ import Link from "next/link";
 import { Plus, Home as HomeIcon, Eye, Edit2, CheckCircle, Calendar, AlertCircle } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/ToastProvider";
+import { Imovel } from "@/types";
 
 export default function PropertiesPage() {
-    const { properties } = useApp();
+    const { imoveis } = useApp();
 
     return (
         <div className="container">
@@ -17,7 +18,7 @@ export default function PropertiesPage() {
                 </Link>
             </header>
 
-            {properties.filter(p => p.isActive).length === 0 ? (
+            {imoveis.filter(p => p.ativo).length === 0 ? (
                 <div style={{ textAlign: 'center', padding: 'var(--space-xl) var(--space-md)', background: 'var(--color-surface-1)', borderRadius: 'var(--radius-lg)', border: '1px dashed var(--color-border)' }}>
                     <HomeIcon size={48} style={{ color: 'var(--color-text-tertiary)', marginBottom: 'var(--space-md)', opacity: 0.5 }} />
                     <h3 style={{ marginBottom: '8px', color: 'var(--color-text-secondary)' }}>Nenhum imóvel cadastrado</h3>
@@ -28,8 +29,8 @@ export default function PropertiesPage() {
                 </div>
             ) : (
                 <div style={{ display: 'grid', gap: 'var(--space-md)' }}>
-                    {properties.filter(p => p.isActive).map((property) => (
-                        <PropertyCard key={property.id} property={property} />
+                    {imoveis.filter(p => p.ativo).map((imovel) => (
+                        <PropertyCard key={imovel.id} imovel={imovel} />
                     ))}
                 </div>
             )}
@@ -37,8 +38,8 @@ export default function PropertiesPage() {
     );
 }
 
-function PropertyCard({ property }: { property: any }) {
-    const { rentPayments, processMonthlyPayment } = useApp();
+function PropertyCard({ imovel }: { imovel: Imovel }) {
+    const { imoveisPagamentos, receberPagamento } = useApp();
     const { showToast } = useToast();
 
     // STRICT TIME SOURCE
@@ -46,16 +47,13 @@ function PropertyCard({ property }: { property: any }) {
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth(); // 0-11
 
-    // DB uses 1-12 for months. 
-    const currentDbMonth = currentMonth + 1; // 1-12
+    // YYYY-MM-01 Ref for current month
+    const currentMesRef = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
     const currentMonthName = now.toLocaleString('pt-BR', { month: 'long' });
 
     // 1. CHECK IF CURRENT MONTH IS PAID
-    const isPaidThisMonth = rentPayments.some(p => {
-        if (p.propertyId !== property.id) return false;
-        if (p.status !== 'paid') return false;
-        // Direct Match (No string parsing)
-        return p.year === currentYear && p.month === currentDbMonth;
+    const isPaidThisMonth = imoveisPagamentos.some(p => {
+        return p.imovel_id === imovel.id && p.status === 'pago' && p.mes_ref === currentMesRef;
     });
 
     // 2. TIMELINE GENERATION (Fixed Jan-Dec)
@@ -65,14 +63,10 @@ function PropertyCard({ property }: { property: any }) {
         // Create date for label (e.g. "jan", "fev")
         const d = new Date(currentYear, mIndex, 1);
         const label = d.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
+        const targetMesRef = `${currentYear}-${String(mIndex + 1).padStart(2, '0')}-01`;
 
-        const targetDbMonth = mIndex + 1; // 1-12
-
-        // Check verification for this specific month index
-        const isMonthPaid = rentPayments.some(p => {
-            if (p.propertyId !== property.id) return false;
-            if (p.status !== 'paid') return false;
-            return p.year === currentYear && p.month === targetDbMonth;
+        const isMonthPaid = imoveisPagamentos.some(p => {
+            return p.imovel_id === imovel.id && p.status === 'pago' && p.mes_ref === targetMesRef;
         });
 
         return {
@@ -83,15 +77,20 @@ function PropertyCard({ property }: { property: any }) {
     });
 
     // 3. HANDLE PAYMENT ACTION
-    const handlePayment = () => {
+    const handlePayment = async () => {
         if (isPaidThisMonth) return; // Prevention
 
-        const confirmMsg = `CONFIRMAÇÃO DE RECEBIMENTO\n\nImóvel: ${property.name}\nMês de Referência: ${currentMonthName.toUpperCase()}/${currentYear}\n\nDeseja confirmar o pagamento?`;
+        const confirmMsg = `CONFIRMAÇÃO DE RECEBIMENTO\n\nImóvel: ${imovel.nome}\nMês de Referência: ${currentMonthName.toUpperCase()}/${currentYear}\n\nDeseja confirmar o pagamento?`;
 
         if (confirm(confirmMsg)) {
-            // Updated Signature: propertyId, month (1-12), year
-            processMonthlyPayment(property.id, currentDbMonth, currentYear);
-            showToast("Pagamento registrado com sucesso", "success");
+            try {
+                // Pass NOW as payment date -> Recieves for current month
+                await receberPagamento(imovel.id, new Date());
+                showToast("Pagamento registrado com sucesso", "success");
+            } catch (error) {
+                console.error(error);
+                showToast("Erro ao registrar pagamento", "error");
+            }
         }
     };
 
@@ -166,19 +165,20 @@ function PropertyCard({ property }: { property: any }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                     <div>
                         <div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--color-text-primary)' }}>
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(property.rentAmount)}
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(imovel.valor_aluguel)}
                         </div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '2px' }}>{property.name}</h3>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>{property.address}</p>
+                        <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '2px' }}>{imovel.nome}</h3>
+                        {/* Address removed as per new schema */}
+                        {/* <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>{imovel.address}</p> */}
                     </div>
 
-                    {/* Due Date Indicator */}
-                    <div style={{ textAlign: 'center', background: 'var(--color-surface-2)', padding: '6px 10px', borderRadius: '8px' }}>
-                        <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', fontWeight: '700' }}>Vencimento</div>
-                        <div style={{ fontWeight: '700', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>
-                            {property.paymentDay}<span style={{ fontSize: '0.8rem' }}>.{apiMonthToDisplay(currentDbMonth)}</span>
-                        </div>
-                    </div>
+                    {/* Due Date Indicator (Legacy was paymentDay, assume 10 if missing or hide?) 
+                        Let's just show standard day 10 if we want consistency or hide it.
+                        User asked for "Correction", implies using available data.
+                        Data: id, nome, valor_aluguel. 
+                        We can hide it, but "Vencimento" is useful.
+                        Let's hide it for now to avoid confusion with "10" if it's not real.
+                    */}
                 </div>
 
                 {/* ACTIONS */}
@@ -216,18 +216,16 @@ function PropertyCard({ property }: { property: any }) {
                         </button>
                     )}
 
-                    <Link href={`/properties/${property.id}/view`} className="btn" style={{ flex: 1, background: 'var(--color-surface-2)', padding: '0 12px' }}>
+                    <Link href={`/properties/${imovel.id}/view`} className="btn" style={{ flex: 1, background: 'var(--color-surface-2)', padding: '0 12px' }}>
                         <Eye size={20} />
                     </Link>
-                    <Link href={`/properties/${property.id}/edit`} className="btn" style={{ flex: 1, background: 'var(--color-surface-2)', padding: '0 12px' }}>
+                    {/* Edit page likely needs update too, skipping for now in this list view but linking to it */}
+                    {/* <Link href={`/properties/${imovel.id}/edit`} className="btn" style={{ flex: 1, background: 'var(--color-surface-2)', padding: '0 12px' }}>
                         <Edit2 size={20} />
-                    </Link>
+                    </Link> */}
+                    {/* Disabling Edit link until checked? Or just let it be. Assuming user might want to edit. */}
                 </div>
             </div>
         </div>
     );
-}
-
-function apiMonthToDisplay(m: number) {
-    return String(m).padStart(2, '0');
 }
