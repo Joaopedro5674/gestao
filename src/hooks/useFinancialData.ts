@@ -52,12 +52,12 @@ export function useFinancialData() {
         .filter(e => validEmprestimoIds.has(e.id))
         .filter(e => e.status === 'ativo')
         .reduce((acc, e) => acc + e.juros_total_contratado, 0);
-    
+
     // Also calculating Realized Interest this month if needed?
     // Prompt says "Dashboard deve... Somar... Juros contratados".
-    // It implies the "Potential" value. 
+    // It implies the "Potential" value.
     // If user wanted "Received", they would say "Juros recebidos".
-    
+
     const loanRevenue = emprestimos
         .filter(e => validEmprestimoIds.has(e.id))
         .filter(e => e.status === 'pago')
@@ -72,7 +72,7 @@ export function useFinancialData() {
     // --- SPREADSHEET DATA GENERATION ---
 
     const rentalSpreadsheetData: any[] = [];
-    
+
     // Iterate over Imoveis, checking status for current month (?) or history?
     // Usually spreadsheet shows History.
     // For now, let's build a month-by-month view or just list all payments?
@@ -81,12 +81,12 @@ export function useFinancialData() {
     // Or full history?
     // User goal: "Correction... dashboard".
     // Let's replicate the existing spreadsheet logic but using new tables for data.
-    
+
     // Get all unique months from payments + expenses
     const monthKeys = new Set<string>();
     imoveisPagamentos.forEach(p => monthKeys.add(p.mes_ref.slice(0, 7))); // YYYY-MM
     // add expenses if needed...
-    
+
     // Sort months desc
     const sortedMonths = Array.from(monthKeys).sort().reverse();
     // Default to at least current month if empty
@@ -100,13 +100,13 @@ export function useFinancialData() {
         // For this month, list all properties
         imoveis.forEach(imovel => {
              // Find payment
-             const payment = imoveisPagamentos.find(p => 
-                p.imovel_id === imovel.id && 
+             const payment = imoveisPagamentos.find(p =>
+                p.imovel_id === imovel.id &&
                 p.mes_ref === `${ ym }-01`
              );
 
              // Find expenses
-             const monthExpenses = expenses.filter(e => 
+             const monthExpenses = expenses.filter(e =>
                 e.property_id === imovel.id &&
                 e.year === y &&
                 e.month === (m - 1) // Expense assumed 0-11
@@ -116,7 +116,7 @@ export function useFinancialData() {
              const isPaid = payment?.status === 'pago';
              // Let's show Rent Value if paid, else 0 for "Value Received".
              // But for "Spreadsheet" usually we want to see the status.
-             
+
              rentalSpreadsheetData.push({
                  property: imovel.nome,
                  month: `${ String(m).padStart(2, '0') }/${y}`,
@@ -157,3 +157,4 @@ return {
     }
 };
 }
+```
