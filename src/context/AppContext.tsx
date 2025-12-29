@@ -167,7 +167,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // PAGAMENTOS REFACTOR
     const receberPagamento = async (imovelId: string, dataPagamento: Date) => {
-        if (!user) return;
+        if (!user) {
+            showToast("Usuário não autenticado", "error");
+            return;
+        }
 
         // Strict MesRef: YYYY-MM-01
         const year = dataPagamento.getFullYear();
@@ -175,16 +178,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const mesRef = `${year}-${String(month).padStart(2, '0')}-01`;
 
         try {
-            // 1. Check idempotency (Already Paid?)
-            // We use 'imoveisPagamentos' state for quick check, but DB check is safer for race conditions.
-            // Relying on UNIQUE constraint in DB to prevent duplicates, but let's check to give user feedback.
-            const existing = imoveisPagamentos.find(p => p.imovel_id === imovelId && p.mes_ref === mesRef);
-
-            if (existing && existing.status === 'pago') {
-                showToast("Pagamento já registrado para este mês.", "info");
-                return;
-            }
-
             // 2. Get current Rent Value
             const imovel = imoveis.find(i => i.id === imovelId);
             if (!imovel) throw new Error("Imóvel não encontrado localmente");
@@ -207,6 +200,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             if (error) throw error;
 
             showToast(`Pagamento recebido: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(imovel.valor_aluguel)}`, "success");
+
+            // CRITICAL: Full fetch after success
             await fetchData();
 
         } catch (e: any) {
@@ -215,16 +210,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    // GASTOS (NEW)
+    // GASTOS (RESTORATION)
     const adicionarGasto = async (gasto: Omit<ImovelGasto, "id" | "created_at" | "user_id">) => {
-        if (!user) return;
+        if (!user) {
+            showToast("Usuário não autenticado", "error");
+            return;
+        }
         try {
             const { error } = await supabase.from('imoveis_gastos').insert({
                 ...gasto,
                 user_id: user.id
             });
             if (error) throw error;
-            showToast("Gasto registrado", "success");
+            showToast("Gasto registrado com sucesso", "success");
+
+            // CRITICAL: Full fetch after success
             await fetchData();
         } catch (e: any) {
             console.error(e);
@@ -233,10 +233,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     const deletarGasto = async (id: string) => {
+        if (!user) return;
         try {
             const { error } = await supabase.from('imoveis_gastos').delete().eq('id', id);
             if (error) throw error;
             showToast("Gasto removido", "success");
+
+            // CRITICAL: Full fetch after success
             await fetchData();
         } catch (e: any) {
             console.error(e);

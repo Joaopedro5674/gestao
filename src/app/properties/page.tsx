@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, Home as HomeIcon, Eye, Edit2, CheckCircle, Calendar, AlertCircle } from "lucide-react";
+import { useState } from "react";
+import { Plus, Home as HomeIcon, Eye, Edit2, CheckCircle, Calendar, AlertCircle, Search, BarChart3, X } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/ToastProvider";
 import { Imovel } from "@/types";
@@ -43,28 +44,29 @@ export default function PropertiesPage() {
 }
 
 function PropertyCard({ imovel }: { imovel: Imovel }) {
-    const { imoveisPagamentos, receberPagamento } = useApp();
+    const { imoveisPagamentos, receberPagamento, adicionarGasto } = useApp();
     const { showToast } = useToast();
+    const [showGastoModal, setShowGastoModal] = useState(false);
+
+    // Gasto Form State
+    const [gastoDesc, setGastoDesc] = useState("");
+    const [gastoValor, setGastoValor] = useState("");
+    const [isSavingGasto, setIsSavingGasto] = useState(false);
 
     // STRICT TIME SOURCE
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth(); // 0-11
+    const currentMonth = now.getMonth();
 
-    // YYYY-MM-01 Ref for current month
     const currentMesRef = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
     const currentMonthName = now.toLocaleString('pt-BR', { month: 'long' });
 
-    // 1. CHECK IF CURRENT MONTH IS PAID
     const isPaidThisMonth = imoveisPagamentos.some(p => {
         return p.imovel_id === imovel.id && p.status === 'pago' && p.mes_ref === currentMesRef;
     });
 
-    // 2. TIMELINE GENERATION (Fixed Jan-Dec)
-    const months = Array.from({ length: 12 }, (_, i) => i); // [0..11] representing Jan..Dec
-
+    const months = Array.from({ length: 12 }, (_, i) => i);
     const timelineData = months.map(mIndex => {
-        // Create date for label (e.g. "jan", "fev")
         const d = new Date(currentYear, mIndex, 1);
         const label = d.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
         const targetMesRef = `${currentYear}-${String(mIndex + 1).padStart(2, '0')}-01`;
@@ -73,170 +75,130 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
             return p.imovel_id === imovel.id && p.status === 'pago' && p.mes_ref === targetMesRef;
         });
 
-        return {
-            label,
-            isPaid: isMonthPaid,
-            isCurrent: mIndex === currentMonth
-        };
+        return { label, isPaid: isMonthPaid, isCurrent: mIndex === currentMonth };
     });
 
-    // 3. HANDLE PAYMENT ACTION
     const handlePayment = async () => {
-        if (isPaidThisMonth) return; // Prevention
-
-        const confirmMsg = `CONFIRMAÇÃO DE RECEBIMENTO\n\nImóvel: ${imovel.nome}\nMês de Referência: ${currentMonthName.toUpperCase()}/${currentYear}\n\nDeseja confirmar o pagamento?`;
-
+        if (isPaidThisMonth) return;
+        const confirmMsg = `CONFIRMAÇÃO DE RECEBIMENTO\n\nImóvel: ${imovel.nome}\nMês: ${currentMonthName.toUpperCase()}\n\nDeseja confirmar?`;
         if (confirm(confirmMsg)) {
-            try {
-                // Pass NOW as payment date -> Recieves for current month
-                await receberPagamento(imovel.id, new Date());
-                showToast("Pagamento registrado com sucesso", "success");
-            } catch (error) {
-                console.error(error);
-                showToast("Erro ao registrar pagamento", "error");
-            }
+            await receberPagamento(imovel.id, new Date());
+        }
+    };
+
+    const handleSaveGasto = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!gastoDesc || !gastoValor) return;
+        setIsSavingGasto(true);
+        try {
+            await adicionarGasto({
+                imovel_id: imovel.id,
+                mes_ref: currentMesRef,
+                descricao: gastoDesc,
+                valor: parseFloat(gastoValor.replace(',', '.'))
+            });
+            setShowGastoModal(false);
+            setGastoDesc("");
+            setGastoValor("");
+        } finally {
+            setIsSavingGasto(false);
         }
     };
 
     return (
-        <div className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)', opacity: 1 }}>
-            {/* COMPONENT HEADER: Timeline & Status */}
+        <div className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
             <div style={{
-                background: isPaidThisMonth ? 'rgba(var(--color-success-rgb), 0.1)' : 'var(--color-surface-2)',
+                background: isPaidThisMonth ? 'rgba(var(--color-success-rgb), 0.05)' : 'var(--color-surface-2)',
                 padding: '12px 16px',
                 borderBottom: '1px solid var(--color-border)',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 flexWrap: 'wrap',
-                gap: '12px'
+                gap: '8px'
             }}>
-                {/* 12-Month Timeline (Jan -> Dec) */}
-                <div style={{
-                    display: 'flex',
-                    gap: '2px', // Tight spacing
-                    alignItems: 'center',
-                    overflowX: 'auto',
-                    maxWidth: '100%',
-                    paddingBottom: '2px' // Scrollbar clearance if needed
-                }}>
+                <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
                     {timelineData.map((t, idx) => (
-                        <div key={idx}
-                            title={`${t.label}: ${t.isPaid ? 'Pago' : 'Pendente'}`}
-                            style={{
-                                width: '22px',
-                                height: '22px',
-                                borderRadius: '50%',
-                                background: t.isPaid ? 'var(--color-success)' : 'var(--color-border)', // Green or Gray
-                                color: t.isPaid ? 'white' : 'var(--color-text-tertiary)',
-                                fontSize: '0.6rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontWeight: 'bold',
-                                textTransform: 'uppercase',
-                                // Current month gets a border highlight
-                                border: t.isCurrent ? '2px solid var(--color-text-primary)' : '1px solid rgba(0,0,0,0.05)',
-                                transform: t.isCurrent ? 'scale(1.15)' : 'none',
-                                zIndex: t.isCurrent ? 1 : 0,
-                                opacity: t.isPaid || t.isCurrent ? 1 : 0.5
-                            }}
-                        >
+                        <div key={idx} style={{
+                            width: '20px', height: '20px', borderRadius: '50%',
+                            background: t.isPaid ? 'var(--color-success)' : 'var(--color-border)',
+                            color: t.isPaid ? 'white' : 'var(--color-text-tertiary)',
+                            fontSize: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontWeight: 'bold', border: t.isCurrent ? '2px solid var(--color-text-primary)' : 'none',
+                            opacity: t.isPaid || t.isCurrent ? 1 : 0.4
+                        }}>
                             {t.label[0]}
                         </div>
                     ))}
                 </div>
-
-                {/* Text Status Badge */}
                 <div style={{
-                    fontSize: '0.75rem',
-                    fontWeight: '700',
-                    padding: '4px 10px',
-                    borderRadius: '12px',
+                    fontSize: '0.65rem', fontWeight: '800', padding: '3px 8px', borderRadius: '10px',
                     background: isPaidThisMonth ? 'var(--color-success)' : 'var(--color-text-tertiary)',
-                    color: 'white',
-                    display: 'flex', alignItems: 'center', gap: '4px', textTransform: 'uppercase',
-                    whiteSpace: 'nowrap',
-                    marginLeft: 'auto'
+                    color: 'white', textTransform: 'uppercase'
                 }}>
-                    {isPaidThisMonth ? <CheckCircle size={12} /> : null}
                     {isPaidThisMonth ? 'Pago' : 'Pendente'}
                 </div>
             </div>
 
-            {/* COMPONENT BODY */}
             <div style={{ padding: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                     <div>
-                        <div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--color-text-primary)' }}>
+                        <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--color-text-primary)' }}>
                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(imovel.valor_aluguel)}
                         </div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '2px' }}>{imovel.nome}</h3>
-                        {/* Address removed as per new schema */}
-                        {/* <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>{imovel.address}</p> */}
+                        <h3 style={{ fontSize: '0.95rem', fontWeight: '600' }}>{imovel.nome}</h3>
                     </div>
-
-                    {/* Due Date Indicator (Legacy was paymentDay, assume 10 if missing or hide?) 
-                        Let's just show standard day 10 if we want consistency or hide it.
-                        User asked for "Correction", implies using available data.
-                        Data: id, nome, valor_aluguel. 
-                        We can hide it, but "Vencimento" is useful.
-                        Let's hide it for now to avoid confusion with "10" if it's not real.
-                    */}
                 </div>
 
-                {/* ACTIONS */}
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '8px', marginBottom: '8px' }}>
                     {!isPaidThisMonth ? (
-                        // STATE: PENDING -> ACTIVE GREEN BUTTON
-                        <button
-                            onClick={handlePayment}
-                            className="btn btn-primary"
-                            style={{ flex: 2, background: 'var(--color-success)', color: 'white', boxShadow: 'var(--shadow-sm)' }}
-                        >
-                            <CheckCircle size={18} style={{ marginRight: '6px' }} /> Receber {currentMonthName}
+                        <button onClick={handlePayment} className="btn" style={{ background: 'var(--color-success)', color: 'white', fontSize: '0.85rem' }}>
+                            <CheckCircle size={16} /> Receber {currentMonthName.slice(0, 3)}
                         </button>
                     ) : (
-                        // STATE: PAID -> DISABLED GRAY BUTTON
-                        <button
-                            disabled
-                            style={{
-                                flex: 2,
-                                background: 'var(--color-surface-2)',
-                                color: 'var(--color-text-tertiary)',
-                                border: '1px solid var(--color-border)',
-                                cursor: 'not-allowed',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px',
-                                fontWeight: '600',
-                                fontSize: '0.8rem',
-                                borderRadius: 'var(--radius-md)',
-                                opacity: 1
-                            }}
-                        >
-                            <CheckCircle size={16} />
-                            {(() => {
-                                const payment = imoveisPagamentos.find(p => p.imovel_id === imovel.id && p.status === 'pago' && p.mes_ref === currentMesRef);
-                                if (payment && payment.data_pagamento) {
-                                    return `Pago em ${new Date(payment.data_pagamento).toLocaleDateString('pt-BR')}`;
-                                }
-                                return 'Pagamento recebido';
-                            })()}
+                        <button disabled className="btn" style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-tertiary)', fontSize: '0.8rem', cursor: 'not-allowed', border: '1px solid var(--color-border)' }}>
+                            <CheckCircle size={16} /> Pago
                         </button>
                     )}
+                    <button onClick={() => setShowGastoModal(true)} className="btn" style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-primary)', border: '1px solid var(--color-border)', fontSize: '0.8rem' }}>
+                        <Plus size={16} /> Gasto
+                    </button>
+                </div>
 
-                    <Link href={`/properties/${imovel.id}`} className="btn" style={{ flex: 1, background: 'var(--color-surface-2)', padding: '0 12px' }}>
-                        <Eye size={20} />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <Link href={`/properties/${imovel.id}`} className="btn" style={{ background: 'var(--color-surface-2)', fontSize: '0.8rem', border: '1px solid var(--color-border)', flex: 1 }}>
+                        <Search size={16} /> Histórico
                     </Link>
-                    {/* Edit page likely needs update too, skipping for now in this list view but linking to it */}
-                    {/* <Link href={`/properties/${imovel.id}/edit`} className="btn" style={{ flex: 1, background: 'var(--color-surface-2)', padding: '0 12px' }}>
-                        <Edit2 size={20} />
-                    </Link> */}
-                    {/* Disabling Edit link until checked? Or just let it be. Assuming user might want to edit. */}
+                    <Link href={`/properties/${imovel.id}`} className="btn" style={{ background: 'var(--color-surface-2)', fontSize: '0.8rem', border: '1px solid var(--color-border)', flex: 1 }}>
+                        <BarChart3 size={16} /> Relatório
+                    </Link>
                 </div>
             </div>
+
+            {/* QUICK GASTO MODAL */}
+            {showGastoModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                    <div className="card" style={{ width: '100%', maxWidth: '350px', background: 'white', padding: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                            <h3 style={{ fontSize: '1.1rem' }}>Novo Gasto - {currentMonthName}</h3>
+                            <button onClick={() => setShowGastoModal(false)} style={{ background: 'none', border: 'none' }}><X size={20} /></button>
+                        </div>
+                        <form onSubmit={handleSaveGasto}>
+                            <div className="form-group">
+                                <label className="label">Descrição</label>
+                                <input type="text" className="input" value={gastoDesc} onChange={e => setGastoDesc(e.target.value)} required placeholder="Ex: Reforma cano" />
+                            </div>
+                            <div className="form-group">
+                                <label className="label">Valor (R$)</label>
+                                <input type="number" step="0.01" className="input" value={gastoValor} onChange={e => setGastoValor(e.target.value)} required placeholder="0,00" />
+                            </div>
+                            <button disabled={isSavingGasto} type="submit" className="btn btn-primary btn-full" style={{ marginTop: '10px' }}>
+                                {isSavingGasto ? 'Salvando...' : 'Salvar Gasto'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
