@@ -58,16 +58,16 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <ServiceWorkerRegister />
         <SystemHealthCheck />
-        <AuthProvider>
-          <AppProvider>
-            <ToastProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <AppProvider>
               <main className="pb-24">
                 {children}
               </main>
               <BottomNav />
-            </ToastProvider>
-          </AppProvider>
-        </AuthProvider>
+            </AppProvider>
+          </AuthProvider>
+        </ToastProvider>
       </body>
     </html>
   );
