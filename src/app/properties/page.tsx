@@ -216,7 +216,7 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
                         </button>
                     )}
 
-                    <Link href={`/properties/${imovel.id}/view`} className="btn" style={{ flex: 1, background: 'var(--color-surface-2)', padding: '0 12px' }}>
+                    <Link href={`/properties/${imovel.id}`} className="btn" style={{ flex: 1, background: 'var(--color-surface-2)', padding: '0 12px' }}>
                         <Eye size={20} />
                     </Link>
                     {/* Edit page likely needs update too, skipping for now in this list view but linking to it */}

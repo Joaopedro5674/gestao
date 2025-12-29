@@ -156,7 +156,7 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
                         </div>
                     )}
 
-                    <Link href={`/loans/${emprestimo.id}/view`} className="btn" style={{ flex: 1, background: 'var(--color-surface-2)', padding: '0 12px' }}>
+                    <Link href={`/loans/${emprestimo.id}`} className="btn" style={{ flex: 1, background: 'var(--color-surface-2)', padding: '0 12px' }}>
                         <Eye size={20} />
                     </Link>
                     {/* Disabling Edit unless needed 
