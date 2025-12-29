@@ -19,10 +19,16 @@ export const metadata: Metadata = {
   title: "Controle Patrimonial",
   description: "Gerenciamento de Aluguéis e Empréstimos",
   manifest: "/manifest.json",
+  icons: {
+    apple: "/icons/icon-192.png",
+  },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
-    title: "Gestão",
+    statusBarStyle: "black-translucent",
+    title: "Gestão Patrimonial",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
   },
 };
 
@@ -32,7 +38,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#000000",
+  themeColor: "#ffffff",
 };
 
 import BottomNav from "@/components/BottomNav";
