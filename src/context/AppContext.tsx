@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { Imovel, ImovelPagamento, Emprestimo, ImovelGasto } from "@/types";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "./AuthContext";
 import { useToast } from "@/components/ToastProvider";
 

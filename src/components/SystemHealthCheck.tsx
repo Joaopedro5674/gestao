@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabaseClient";
 
 const SYSTEM_ID = '00000000-0000-0000-0000-000000000001';
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours

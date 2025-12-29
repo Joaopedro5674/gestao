@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 // CRON JOB / HEARTBEAT
 // Ping this endpoint via Vercel Cron to prevent Supabase pausing
@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 export async function GET() {
     try {
         // Simple lightweight query
-        const { count, error } = await supabase.from('imoveis').select('*', { count: 'exact', head: true });
+        const { count, error } = await supabaseAdmin.from('imoveis').select('*', { count: 'exact', head: true });
 
         if (error) {
             console.error("Cron Heartbeat Error:", error);
