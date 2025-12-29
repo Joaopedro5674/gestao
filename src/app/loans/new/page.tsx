@@ -8,7 +8,7 @@ import { useApp } from "@/context/AppContext";
 
 export default function NewLoanPage() {
     const router = useRouter();
-    const { addLoan } = useApp();
+    const { adicionarEmprestimo } = useApp();
 
     const [formData, setFormData] = useState({
         borrowerName: "",
@@ -43,16 +43,15 @@ export default function NewLoanPage() {
         e.preventDefault();
         if (!formData.borrowerName || !principal || !formData.dueDate) return;
 
-        addLoan({
-            borrowerName: formData.borrowerName,
-            principal: principal,
-            monthlyInterestRate: rate,
-            contractDays: totalDays,
-            contractedInterest: interest,
-            totalValue: total,
-            startDate: formData.startDate,
-            dueDate: formData.dueDate,
-            status: 'active'
+        adicionarEmprestimo({
+            cliente_nome: formData.borrowerName,
+            valor_emprestado: principal,
+            juros_mensal: rate,
+            dias_contratados: totalDays,
+            juros_total_contratado: interest,
+            data_inicio: formData.startDate,
+            data_fim: formData.dueDate,
+            status: 'ativo'
         });
 
         router.push("/loans");

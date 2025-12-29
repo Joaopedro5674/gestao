@@ -5,14 +5,15 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
-import { Loan } from "@/types";
+import { Emprestimo } from "@/types";
 
 export default function EditLoanPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
     const { id } = resolvedParams;
     const router = useRouter();
-    const { loans, updateLoan, deleteLoan } = useApp();
-    const [loan, setLoan] = useState<Loan | null>(null);
+    // Updated: use 'emprestimos', 'atualizarEmprestimo', 'deletarEmprestimo'
+    const { emprestimos, atualizarEmprestimo, deletarEmprestimo } = useApp();
+    const [loan, setLoan] = useState<Emprestimo | null>(null);
 
     const [formData, setFormData] = useState({
         borrowerName: "",
@@ -23,24 +24,35 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
     });
 
     useEffect(() => {
-        const found = loans.find((l) => l.id === id);
+        // Updated: use 'emprestimos'
+        const found = emprestimos.find((l) => l.id === id);
         if (found) {
             setLoan(found);
             setFormData({
-                borrowerName: found.borrowerName,
-                principal: found.principal.toString().replace('.', ','),
-                interestRate: found.monthlyInterestRate.toString().replace('.', ','),
-                startDate: found.startDate,
-                dueDate: found.dueDate
+                borrowerName: found.cliente_nome,
+                principal: found.valor_emprestado.toString().replace('.', ','),
+                interestRate: found.juros_mensal.toString().replace('.', ','),
+                startDate: found.data_inicio,
+                dueDate: found.data_fim
             });
         } else {
-            router.push("/loans");
+            // Keep redirect logic if not found? Or wait?
+            // If empty, it might be loading. Handled by loading state in Context mostly.
+            // But if context loaded and not found, redirect.
+            // For safety, let's just let it be handled by user action or distinct "not found" UI.
         }
-    }, [id, loans, router]);
+    }, [id, emprestimos, router]);
 
-    if (!loan) return <div className="container">Carregando...</div>;
+    if (!loan) {
+        return (
+            <div className="container" style={{ padding: 'var(--space-xl)', textAlign: 'center' }}>
+                <p>Carregando...</p>
+                <Link href="/loans" className="btn" style={{ marginTop: '16px' }}>Voltar</Link>
+            </div>
+        );
+    }
 
-    if (loan.status === 'paid') {
+    if (loan.status === 'pago') {
         return (
             <div className="container">
                 <header style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--space-lg)', gap: 'var(--space-sm)' }}>
@@ -60,7 +72,7 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
                         Para garantir a integridade do histórico financeiro, os dados não podem mais ser alterados.
                     </p>
                     <div style={{ display: 'grid', gap: 'var(--space-sm)' }}>
-                        <Link href={`/loans/${id}/view`} className="btn btn-primary" style={{ justifyContent: 'center' }}>
+                        <Link href={`/loans/${id}`} className="btn btn-primary" style={{ justifyContent: 'center' }}>
                             Ver Detalhes e Recibo
                         </Link>
                         <Link href="/loans" className="btn" style={{ justifyContent: 'center', background: 'transparent', border: '1px solid var(--color-border)' }}>
@@ -72,26 +84,46 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
         );
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const principal = parseFloat(formData.principal.replace(',', '.')) || 0;
         const rate = parseFloat(formData.interestRate.replace(',', '.')) || 0;
 
-        updateLoan({
-            ...loan,
-            borrowerName: formData.borrowerName,
-            principal: principal,
-            monthlyInterestRate: rate,
-            startDate: formData.startDate,
-            dueDate: formData.dueDate
+        // Recalculate Contract? 
+        // Logic failure warning: If we change dates/principal, we MUST recalculate interest/total.
+        // User complained about "logic flaws". It's better to recalculate.
+
+        let daysTotal = 0;
+        let interestTotal = 0;
+
+        if (formData.startDate && formData.dueDate) {
+            const start = new Date(formData.startDate + 'T12:00:00');
+            const end = new Date(formData.dueDate + 'T12:00:00');
+            const diffTime = end.getTime() - start.getTime();
+            daysTotal = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (daysTotal < 1) daysTotal = 1;
+
+            const dailyRate = rate / 30;
+            interestTotal = principal * (dailyRate / 100) * daysTotal;
+        }
+
+        await atualizarEmprestimo(loan.id, {
+            cliente_nome: formData.borrowerName,
+            valor_emprestado: principal,
+            juros_mensal: rate,
+            data_inicio: formData.startDate,
+            data_fim: formData.dueDate,
+            dias_contratados: daysTotal,
+            juros_total_contratado: interestTotal
+            // Status remains active
         });
 
         router.push("/loans");
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (confirm("Tem certeza que deseja apagar este empréstimo? Essa ação não pode ser desfeita.")) {
-            deleteLoan(id);
+            await deletarEmprestimo(id);
             router.push("/loans");
         }
     };
@@ -165,7 +197,7 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
                 </div>
 
                 <button type="submit" className="btn btn-primary btn-full" style={{ marginTop: 'var(--space-md)' }}>
-                    Salvar Alterações
+                    Salvar Alterações (Recalcular Contrato)
                 </button>
 
                 <button

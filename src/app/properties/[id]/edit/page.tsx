@@ -5,15 +5,16 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, Save } from "lucide-react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
-import { Property } from "@/types";
+import { Imovel } from "@/types";
 
 export default function EditPropertyPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
     const { id } = resolvedParams;
 
     const router = useRouter();
-    const { properties, updateProperty, deleteProperty } = useApp();
-    const [property, setProperty] = useState<Property | null>(null);
+    // Updated: imoveis, atualizarImovel, deletarImovel
+    const { imoveis, atualizarImovel, deletarImovel } = useApp();
+    const [property, setProperty] = useState<Imovel | null>(null);
 
     const [formData, setFormData] = useState({
         name: "",
@@ -22,28 +23,36 @@ export default function EditPropertyPage({ params }: { params: Promise<{ id: str
     });
 
     useEffect(() => {
-        if (properties.length > 0) {
-            const found = properties.find((p) => p.id === id);
+        if (imoveis.length > 0) {
+            const found = imoveis.find((p) => p.id === id);
             if (found) {
                 setProperty(found);
                 setFormData({
-                    name: found.name,
-                    rentAmount: found.rentAmount.toString(),
-                    paymentDay: found.paymentDay.toString(),
+                    name: found.nome,
+                    rentAmount: found.valor_aluguel.toString().replace('.', ','),
+                    // Check if paymentDay exists in schema. It was missing in new schema description.
+                    // If DB has it but type doesn't, we can ignore or add it to type.
+                    // Assuming basic schema: nome, valor_aluguel. 
+                    // Legacy had paymentDay. If strict schema doesn't have it, we shouldn't try to edit it.
+                    // Let's remove paymentDay from edit if it's not in Imovel type.
+                    // Wait, Imovel type in types/index.ts is: id, nome, valor_aluguel, ativo. NO paymentDay.
+                    // So we should remove it from UI to avoid confusion or errors.
+                    paymentDay: "10", // Dummy
                 });
             }
         }
-    }, [id, properties]);
+    }, [id, imoveis]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!property) return;
 
-        updateProperty(property.id, {
-            name: formData.name,
-            rentAmount: parseFloat(formData.rentAmount.replace(',', '.')),
-            paymentDay: parseInt(formData.paymentDay) || 10,
-            isActive: property.isActive
+        await atualizarImovel(property.id, {
+            nome: formData.name,
+            valor_aluguel: parseFloat(formData.rentAmount.replace(',', '.')),
+            // paymentDay ignored
+            // Ativo preserved
+            ativo: property.ativo
         });
 
         router.push("/properties");
@@ -88,17 +97,7 @@ export default function EditPropertyPage({ params }: { params: Promise<{ id: str
                     />
                 </div>
 
-                <div className="form-group">
-                    <label className="label">Dia Vencimento</label>
-                    <input
-                        type="number"
-                        className="input"
-                        value={formData.paymentDay}
-                        onChange={(e) => setFormData({ ...formData, paymentDay: e.target.value })}
-                        min="1"
-                        max="31"
-                    />
-                </div>
+                {/* Removed Payment Day as it's not in schema */}
 
                 <button type="submit" className="btn btn-primary btn-full" style={{ marginTop: 'var(--space-md)' }}>
                     <Save size={20} style={{ marginRight: '8px' }} /> Salvar Alterações
@@ -107,9 +106,9 @@ export default function EditPropertyPage({ params }: { params: Promise<{ id: str
 
             <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                     if (window.confirm("CONFIRMAÇÃO NECESSÁRIA:\n\nDeseja realmente apagar este imóvel?\n\nEle será removido da lista ativa, mas o histórico financeiro será preservado para relatórios.")) {
-                        deleteProperty(property.id);
+                        await deletarImovel(property.id);
                         router.push("/properties");
                     }
                 }}

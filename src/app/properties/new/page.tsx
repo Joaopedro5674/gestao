@@ -8,7 +8,7 @@ import { useApp } from "@/context/AppContext";
 
 export default function NewPropertyPage() {
     const router = useRouter();
-    const { addProperty } = useApp();
+    const { adicionarImovel } = useApp();
 
     const [formData, setFormData] = useState({
         name: "",
@@ -21,12 +21,10 @@ export default function NewPropertyPage() {
         e.preventDefault();
         if (!formData.name || !formData.rentAmount) return;
 
-        addProperty({
-            name: formData.name,
-            rentAmount: parseFloat(formData.rentAmount.replace(',', '.')), // Handle PT-BR decimal
-            paymentDay: parseInt(formData.paymentDay) || 10,
-            isActive: true,
-            userId: "current-user-id" // Placeholder, will be overwritten by AppContext/Supabase
+        adicionarImovel({
+            nome: formData.name,
+            valor_aluguel: parseFloat(formData.rentAmount.replace(',', '.')), // Handle PT-BR decimal
+            ativo: true
         });
 
         router.push("/properties");

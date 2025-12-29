@@ -27,6 +27,7 @@ interface AppContextType {
 
     // Emprestimo Actions
     adicionarEmprestimo: (emprestimo: Omit<Emprestimo, "id" | "created_at" | "user_id">) => Promise<void>;
+    atualizarEmprestimo: (id: string, updates: Partial<Emprestimo>) => Promise<void>;
     marcarEmprestimoPago: (id: string) => Promise<void>;
     deletarEmprestimo: (id: string) => Promise<void>;
 
@@ -46,6 +47,7 @@ const AppContext = createContext<AppContextType>({
     adicionarGasto: async () => { },
     deletarGasto: async () => { },
     adicionarEmprestimo: async () => { },
+    atualizarEmprestimo: async () => { },
     marcarEmprestimoPago: async () => { },
     deletarEmprestimo: async () => { },
     refreshData: async () => { },
@@ -252,6 +254,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const atualizarEmprestimo = async (id: string, updates: Partial<Emprestimo>) => {
+        try {
+            const { error } = await supabase.from('emprestimos').update(updates).eq('id', id);
+            if (error) throw error;
+            showToast("Empréstimo atualizado", "success");
+            await fetchData();
+        } catch (e: any) {
+            console.error(e);
+            showToast("Erro ao atualizar empréstimo", "error");
+        }
+    };
+
     const marcarEmprestimoPago = async (id: string) => {
         try {
             const { error } = await supabase.from('emprestimos').update({
@@ -295,6 +309,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 adicionarGasto,
                 deletarGasto,
                 adicionarEmprestimo,
+                atualizarEmprestimo,
                 marcarEmprestimoPago,
                 deletarEmprestimo,
                 refreshData: fetchData
