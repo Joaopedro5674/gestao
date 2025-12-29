@@ -155,13 +155,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const deletarImovel = async (id: string) => {
         try {
-            const { error } = await supabase.from('imoveis').delete().eq('id', id);
-            if (error) throw error;
-            showToast("Imóvel excluído", "success");
+            // 1. Apagar todos os gastos do imóvel
+            const { error: gastosError } = await supabase.from('imoveis_gastos').delete().eq('imovel_id', id);
+            if (gastosError) throw gastosError;
+
+            // 2. Apagar todos os pagamentos do imóvel
+            const { error: pagamentosError } = await supabase.from('imoveis_pagamentos').delete().eq('imovel_id', id);
+            if (pagamentosError) throw pagamentosError;
+
+            // 3. Apagar o imóvel principal
+            const { error: imovelError } = await supabase.from('imoveis').delete().eq('id', id);
+            if (imovelError) throw imovelError;
+
+            showToast("Imóvel e todos os registros relacionados foram excluídos", "success");
+
+            // CRITICAL: Full re-fetch to update all parts of the app (Dashboard, Reports, etc.)
             await fetchData();
         } catch (e: any) {
-            console.error(e);
-            showToast("Erro ao excluir imóvel", "error");
+            console.error("Erro ao deletar imóvel:", e);
+            showToast("Erro ao excluir imóvel: " + (e.message || "Tente novamente"), "error");
         }
     };
 

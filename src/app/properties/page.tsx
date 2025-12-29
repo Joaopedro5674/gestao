@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Plus, Home as HomeIcon, Eye, Edit2, CheckCircle, Calendar, AlertCircle, Search, BarChart3, X } from "lucide-react";
+import { Plus, Home as HomeIcon, Eye, Edit2, CheckCircle, Calendar, AlertCircle, Search, BarChart3, X, Trash2 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/ToastProvider";
 import { Imovel } from "@/types";
@@ -44,14 +44,16 @@ export default function PropertiesPage() {
 }
 
 function PropertyCard({ imovel }: { imovel: Imovel }) {
-    const { imoveisPagamentos, receberPagamento, adicionarGasto } = useApp();
+    const { imoveisPagamentos, receberPagamento, adicionarGasto, deletarImovel } = useApp();
     const { showToast } = useToast();
     const [showGastoModal, setShowGastoModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     // Gasto Form State
     const [gastoDesc, setGastoDesc] = useState("");
     const [gastoValor, setGastoValor] = useState("");
     const [isSavingGasto, setIsSavingGasto] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // STRICT TIME SOURCE
     const now = new Date();
@@ -105,6 +107,18 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
         }
     };
 
+    const handleDeleteImovel = async () => {
+        setIsDeleting(true);
+        try {
+            await deletarImovel(imovel.id);
+            setShowDeleteModal(false);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     return (
         <div className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
             <div style={{
@@ -148,6 +162,14 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
                         </div>
                         <h3 style={{ fontSize: '0.95rem', fontWeight: '600' }}>{imovel.nome}</h3>
                     </div>
+                    <button
+                        onClick={() => setShowDeleteModal(true)}
+                        className="btn"
+                        style={{ background: 'rgba(var(--color-error-rgb), 0.1)', color: 'var(--color-error)', border: '1px solid rgba(var(--color-error-rgb), 0.2)', padding: '6px' }}
+                        title="Apagar Imóvel"
+                    >
+                        <Trash2 size={16} />
+                    </button>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '8px', marginBottom: '8px' }}>
@@ -196,6 +218,46 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
                                 {isSavingGasto ? 'Salvando...' : 'Salvar Gasto'}
                             </button>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* DELETE CONFIRMATION MODAL */}
+            {showDeleteModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 101, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(4px)' }}>
+                    <div className="card" style={{ width: '100%', maxWidth: '400px', background: 'var(--color-surface-1)', padding: '24px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' }}>
+                        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                            <div style={{
+                                width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(var(--color-error-rgb), 0.1)',
+                                color: 'var(--color-error)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                margin: '0 auto 16px auto'
+                            }}>
+                                <AlertCircle size={32} />
+                            </div>
+                            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--color-text-primary)', marginBottom: '8px' }}>Apagar Imóvel?</h3>
+                            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                                Este imóvel e <strong>todos os seus pagamentos e gastos</strong> serão apagados permanentemente. Esta ação não pode ser desfeita.
+                            </p>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button
+                                onClick={() => setShowDeleteModal(false)}
+                                className="btn"
+                                style={{ flex: 1, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+                                disabled={isDeleting}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleDeleteImovel}
+                                className="btn"
+                                style={{ flex: 1, background: 'var(--color-error)', color: 'white' }}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? 'Apagando...' : 'Sim, Apagar'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
