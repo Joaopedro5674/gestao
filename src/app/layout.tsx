@@ -13,9 +13,18 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+
 export const metadata: Metadata = {
   title: "Controle Patrimonial",
   description: "Gerenciamento de Aluguéis e Empréstimos",
+  manifest: "/manifest.json",
+  themeColor: "#000000",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Gestão",
+  },
 };
 
 export const viewport: Viewport = {
@@ -23,6 +32,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
 };
 
 import BottomNav from "@/components/BottomNav";
@@ -40,6 +50,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        <ServiceWorkerRegister />
         <SystemHealthCheck />
         <AuthProvider>
           <AppProvider>
