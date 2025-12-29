@@ -4,5 +4,20 @@
             "path": "/api/keep-alive",
             "schedule": "0 3 * * *"
         }
+    ],
+    "headers": [
+        {
+            "source": "/manifest.json",
+            "headers": [
+                {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "key": "Cache-Control",
+                    "value": "public, max-age=0, must-revalidate"
+                }
+            ]
+        }
     ]
 }
