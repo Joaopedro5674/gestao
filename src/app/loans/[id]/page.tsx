@@ -1,19 +1,18 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, use } from "react";
 import { ChevronLeft, AlertTriangle, UserX, CheckCircle, Clock } from "lucide-react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
-import { Emprestimo } from "@/types";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/components/ToastProvider";
+import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 
 export default function LoanDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
     const { id } = resolvedParams;
     const { emprestimos, deletarEmprestimo } = useApp();
     const router = useRouter();
-    const { showToast } = useToast();
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const emprestimo = emprestimos.find((l) => l.id === id) || null;
 
     if (!emprestimo) return <div className="container" style={{ padding: 'var(--space-xl)', textAlign: 'center' }}>Carregando...</div>;
@@ -167,18 +166,24 @@ export default function LoanDetailsPage({ params }: { params: Promise<{ id: stri
             <div style={{ marginTop: 'var(--space-xl)' }}>
                 <h3 style={{ fontSize: '0.9rem', marginBottom: 'var(--space-md)', color: 'var(--color-text-secondary)' }}>Ações de Controle</h3>
                 <button
-                    onClick={() => {
-                        if (confirm("ATENÇÃO: EXCLUSÃO TOTAL E IRREVERSÍVEL\n\nDeseja realmente apagar este empréstimo?")) {
-                            deletarEmprestimo(emprestimo.id);
-                            router.push("/loans");
-                        }
-                    }}
+                    onClick={() => setIsDeleteModalOpen(true)}
                     className="btn btn-full"
                     style={{ background: 'transparent', border: '1px solid var(--color-danger)', color: 'var(--color-danger)', justifyContent: 'center' }}
                 >
                     <UserX size={18} style={{ marginRight: '8px' }} /> Apagar Empréstimo
                 </button>
             </div>
+
+            <DeleteConfirmModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={async () => {
+                    await deletarEmprestimo(emprestimo.id);
+                    router.push("/loans");
+                }}
+                itemName={emprestimo.cliente_nome}
+                itemType="Empréstimo"
+            />
         </div>
     );
 }

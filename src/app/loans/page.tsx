@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, TrendingUp, Eye, Edit2, CheckCircle, AlertTriangle, Calendar, Lock, Calculator, Phone } from "lucide-react";
+import { Plus, TrendingUp, Eye, Edit2, CheckCircle, AlertTriangle, Lock, Calculator, Phone } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/ToastProvider";
 import { Emprestimo } from "@/types";
 import { useState } from "react";
 import LoanCalculatorModal from "@/components/LoanCalculatorModal";
+import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 
 export default function LoansPage() {
     const { emprestimos, loading } = useApp();
@@ -71,6 +72,7 @@ export default function LoansPage() {
 function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
     const { marcarEmprestimoPago } = useApp();
     const { showToast } = useToast();
+    const [showPaidModal, setShowPaidModal] = useState(false);
 
     const isPaid = emprestimo.status === 'pago';
 
@@ -96,11 +98,9 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
     const startDateStr = new Date(emprestimo.data_inicio + 'T12:00:00').toLocaleDateString('pt-BR');
     const dueDateStr = new Date(emprestimo.data_fim + 'T12:00:00').toLocaleDateString('pt-BR');
 
-    const handleMarkAsPaid = () => {
-        if (confirm(`Confirmar recebimento de ${emprestimo.cliente_nome}?\n\nValor Total: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalReceivable)}\nLucro Garantido: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.interestOnly)}`)) {
-            marcarEmprestimoPago(emprestimo.id);
-            showToast("Empréstimo encerrado com sucesso", "success");
-        }
+    const handleMarkAsPaid = async () => {
+        await marcarEmprestimoPago(emprestimo.id);
+        showToast("Empréstimo encerrado com sucesso", "success");
     };
 
     return (
@@ -180,7 +180,7 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                     {!isPaid && (
                         <button
-                            onClick={handleMarkAsPaid}
+                            onClick={() => setShowPaidModal(true)}
                             className="btn btn-primary"
                             style={{ gridColumn: 'span 2', background: 'var(--color-success)', color: 'white', boxShadow: 'var(--shadow-sm)', padding: '0.8rem' }}
                         >
@@ -213,6 +213,14 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
                     </Link>
                 </div>
             </div>
+
+            <DeleteConfirmModal
+                isOpen={showPaidModal}
+                onClose={() => setShowPaidModal(false)}
+                onConfirm={handleMarkAsPaid}
+                itemName={`${emprestimo.cliente_nome} (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalReceivable)})`}
+                itemType="Empréstimo"
+            />
         </div>
     );
 }

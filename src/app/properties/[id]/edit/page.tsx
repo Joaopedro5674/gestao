@@ -6,6 +6,7 @@ import { ChevronLeft, Save, Trash2, User, Home, DollarSign, Calendar } from "luc
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { Imovel } from "@/types";
+import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 
 export default function EditPropertyPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
@@ -13,6 +14,7 @@ export default function EditPropertyPage({ params }: { params: Promise<{ id: str
 
     const router = useRouter();
     const { imoveis, atualizarImovel, deletarImovel } = useApp();
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const property = imoveis.find((p) => p.id === id) || null;
 
     if (!property) {
@@ -42,8 +44,19 @@ export default function EditPropertyPage({ params }: { params: Promise<{ id: str
                 <PropertyEditForm
                     property={property}
                     onSubmit={atualizarImovel}
-                    onDelete={deletarImovel}
+                    onDeleteRequest={() => setIsDeleteModalOpen(true)}
                     onSuccess={() => router.push("/properties")}
+                />
+
+                <DeleteConfirmModal
+                    isOpen={isDeleteModalOpen}
+                    onClose={() => setIsDeleteModalOpen(false)}
+                    onConfirm={async () => {
+                        await deletarImovel(property.id);
+                        router.push("/properties");
+                    }}
+                    itemName={property.nome}
+                    itemType="Imóvel"
                 />
             </div>
         </main>
@@ -53,15 +66,14 @@ export default function EditPropertyPage({ params }: { params: Promise<{ id: str
 function PropertyEditForm({
     property,
     onSubmit,
-    onDelete,
-    onSuccess
+    onSuccess,
+    onDeleteRequest
 }: {
     property: Imovel,
     onSubmit: (id: string, updates: Partial<Imovel>) => Promise<void>,
-    onDelete: (id: string) => Promise<void>,
-    onSuccess: () => void
+    onSuccess: () => void,
+    onDeleteRequest: () => void
 }) {
-    const router = useRouter();
     const [formData, setFormData] = useState({
         name: property.nome,
         clientName: property.cliente_nome || "",
@@ -197,12 +209,7 @@ function PropertyEditForm({
 
                 <button
                     type="button"
-                    onClick={() => {
-                        if (confirm("Tem certeza que deseja excluir este imóvel? Esta ação não pode ser desfeita.")) {
-                            onDelete(property.id);
-                            router.push("/properties");
-                        }
-                    }}
+                    onClick={onDeleteRequest}
                     className="btn btn-danger-outline"
                     style={{ height: '52px', borderRadius: '12px', marginTop: '12px' }}
                 >

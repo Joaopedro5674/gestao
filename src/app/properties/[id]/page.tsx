@@ -1,18 +1,20 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, CheckCircle, Edit2, Phone, MapPin, User, History, BarChart3 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
-import { Imovel, ImovelPagamento } from "@/types";
 import { useToast } from "@/components/ToastProvider";
+import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 
 export default function PropertyDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
     const { id } = resolvedParams;
 
-    const { imoveis, imoveisPagamentos, imoveisGastos, receberPagamento } = useApp();
+    const { imoveis, imoveisPagamentos, imoveisGastos, receberPagamento, deletarImovel, loading } = useApp();
     const { showToast } = useToast();
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     const imovel = imoveis.find((p) => p.id === id) || null;
     const history = imoveisPagamentos
@@ -29,24 +31,20 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
 
     const handlePayment = async () => {
         if (!imovel) return;
-        const confirmMsg = `CONFIRMAÇÃO DE RECEBIMENTO\n\nImóvel: ${imovel.nome}\nMês de Referência: ${currentMonthName.toUpperCase()}/${currentYear}\n\nDeseja confirmar o pagamento?`;
-
-        if (confirm(confirmMsg)) {
-            try {
-                await receberPagamento(imovel.id, new Date());
-                showToast("Pagamento registrado com sucesso", "success");
-            } catch (error) {
-                console.error(error);
-                showToast("Erro ao registrar pagamento", "error");
-            }
+        try {
+            await receberPagamento(imovel.id, new Date());
+            showToast("Pagamento registrado com sucesso", "success");
+        } catch (error) {
+            console.error(error);
+            showToast("Erro ao registrar pagamento", "error");
         }
     };
 
-    if (!imovel) {
+    if (loading || !imovel) {
         return (
             <div className="container" style={{ padding: 'var(--space-xl)', textAlign: 'center' }}>
-                <p>Carregando ou não encontrado...</p>
-                <Link href="/properties" className="btn btn-primary" style={{ marginTop: 'var(--space-md)' }}>Voltar</Link>
+                <p>{loading ? "Carregando imóvel..." : "Imóvel não encontrado..."}</p>
+                {!loading && <Link href="/properties" className="btn btn-primary" style={{ marginTop: 'var(--space-md)' }}>Voltar</Link>}
             </div>
         );
     }
@@ -60,9 +58,14 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                 <h1 style={{ fontSize: '1.5rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
                     {imovel.nome}
                 </h1>
-                <Link href={`/properties/${imovel.id}/edit`} className="btn" style={{ padding: '8px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
-                    <Edit2 size={14} /> Editar Cliente
-                </Link>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <Link href={`/properties/${imovel.id}/edit`} className="btn" style={{ padding: '8px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
+                        <Edit2 size={14} /> Editar
+                    </Link>
+                    <button onClick={() => setShowDeleteModal(true)} className="btn" style={{ padding: '8px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-surface-2)', border: '1px solid var(--color-danger)', color: 'var(--color-danger)' }}>
+                        Apagar
+                    </button>
+                </div>
             </header>
 
             <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
@@ -97,7 +100,7 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                 {/* Use Same Logic as Card */}
                 {!isPaidThisMonth ? (
                     <button
-                        onClick={handlePayment}
+                        onClick={() => setShowPaymentModal(true)}
                         className="btn btn-primary"
                         style={{ fontSize: '0.8rem', padding: '0.5rem 0.8rem', background: 'var(--color-success)', color: 'white' }}
                     >
@@ -206,6 +209,25 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                     </div>
                 </div>
             )}
+
+            <DeleteConfirmModal
+                isOpen={showDeleteModal}
+                onClose={() => setShowDeleteModal(false)}
+                onConfirm={async () => {
+                    await deletarImovel(imovel.id);
+                    window.location.href = "/properties";
+                }}
+                itemName={imovel.nome}
+                itemType="Imóvel"
+            />
+
+            <DeleteConfirmModal
+                isOpen={showPaymentModal}
+                onClose={() => setShowPaymentModal(false)}
+                onConfirm={handlePayment}
+                itemName={`${imovel.nome} (${currentMonthName}/${currentYear})`}
+                itemType="Imóvel"
+            />
         </div>
     );
 }

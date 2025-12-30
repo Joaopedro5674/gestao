@@ -11,7 +11,7 @@ export default function SpreadsheetPage() {
     const { spreadsheet, loading } = useFinancialData();
     const [activeTab, setActiveTab] = useState<'rentals' | 'loans'>('rentals');
     const [filterActive, setFilterActive] = useState(true); // Default to Active Only
-    const [now, setNow] = useState(new Date());
+    const [now] = useState(new Date());
 
     if (loading) return <div className="p-8 text-center">Carregando dados...</div>;
 

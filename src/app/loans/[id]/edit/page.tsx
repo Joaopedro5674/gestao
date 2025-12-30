@@ -6,12 +6,14 @@ import { ChevronLeft, Trash2, Save, User, DollarSign, Percent, Calendar, Phone }
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { Emprestimo } from "@/types";
+import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 
 export default function EditLoanPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
     const { id } = resolvedParams;
     const router = useRouter();
     const { emprestimos, atualizarEmprestimo, deletarEmprestimo } = useApp();
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const loan = emprestimos.find((l) => l.id === id) || null;
 
     if (!loan) {
@@ -60,8 +62,19 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
                 <LoanEditForm
                     loan={loan}
                     onSubmit={atualizarEmprestimo}
-                    onDelete={deletarEmprestimo}
+                    onDeleteRequest={() => setIsDeleteModalOpen(true)}
                     onSuccess={() => router.push(`/loans/${id}`)}
+                />
+
+                <DeleteConfirmModal
+                    isOpen={isDeleteModalOpen}
+                    onClose={() => setIsDeleteModalOpen(false)}
+                    onConfirm={async () => {
+                        await deletarEmprestimo(loan.id);
+                        router.push("/loans");
+                    }}
+                    itemName={loan.cliente_nome}
+                    itemType="Empréstimo"
                 />
             </div>
         </main>
@@ -71,15 +84,15 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
 function LoanEditForm({
     loan,
     onSubmit,
-    onDelete,
-    onSuccess
+    onSuccess,
+    onDeleteRequest
 }: {
     loan: Emprestimo,
     onSubmit: (id: string, updates: Partial<Emprestimo>) => Promise<void>,
-    onDelete: (id: string) => Promise<void>,
-    onSuccess: () => void
+    onSuccess: () => void,
+    onDeleteRequest: () => void
 }) {
-    const router = useRouter();
+
     const [formData, setFormData] = useState({
         borrowerName: loan.cliente_nome,
         principal: loan.valor_emprestado.toString().replace('.', ','),
@@ -222,12 +235,7 @@ function LoanEditForm({
 
                 <button
                     type="button"
-                    onClick={() => {
-                        if (confirm("ATENÇÃO: Deseja realmente apagar este empréstimo?")) {
-                            onDelete(loan.id);
-                            router.push("/loans");
-                        }
-                    }}
+                    onClick={onDeleteRequest}
                     className="btn btn-danger-outline"
                     style={{ height: '52px', borderRadius: '12px', marginTop: '12px' }}
                 >

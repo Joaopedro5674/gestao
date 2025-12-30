@@ -35,8 +35,6 @@ export default function ServiceWorkerRegister() {
                 const target = (e.target as HTMLElement).closest("a");
                 if (!target) return;
 
-                const href = target.getAttribute("href");
-
                 // internal link logic safeguard
             });
         }

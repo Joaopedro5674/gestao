@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Wallet, Building, TrendingUp, RefreshCw, Clock, AlertTriangle, CheckCircle, TrendingDown, Table, Download, LogOut, Activity, ShieldCheck } from "lucide-react";
+import { ArrowRight, Wallet, Building, RefreshCw, AlertTriangle, CheckCircle, Table, Download, LogOut, ShieldCheck } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { exportToCSV } from "@/utils/exportUtils";
@@ -65,8 +65,6 @@ export default function Home() {
     setIsHealthModalOpen(true);
 
     try {
-      const start = Date.now();
-
       // 1. Test Supabase Connection (Read-only)
       const { data, error } = await supabase
         .from('system_health')
@@ -105,10 +103,7 @@ export default function Home() {
     }
   };
 
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
   // Fixed Month Ref for DB comparison (YYYY-MM-01)
-  const currentMesRef = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
 
   const monthName = now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
   const timeStr = now.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' });

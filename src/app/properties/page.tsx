@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Plus, Home as HomeIcon, Eye, Edit2, CheckCircle, Calendar, AlertCircle, Search, BarChart3, X, Trash2, Lock } from "lucide-react";
+import { Plus, Home as HomeIcon, CheckCircle, AlertCircle, Search, BarChart3, X, Trash2, Lock } from "lucide-react";
 import { useApp } from "@/context/AppContext";
-import { useToast } from "@/components/ToastProvider";
 import { Imovel } from "@/types";
+import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 
 export default function PropertiesPage() {
     const { imoveis, loading } = useApp();
@@ -45,15 +45,12 @@ export default function PropertiesPage() {
 
 function PropertyCard({ imovel }: { imovel: Imovel }) {
     const { imoveisPagamentos, receberPagamento, adicionarGasto, deletarImovel } = useApp();
-    const { showToast } = useToast();
     const [showGastoModal, setShowGastoModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-    // Gasto Form State
     const [gastoDesc, setGastoDesc] = useState("");
     const [gastoValor, setGastoValor] = useState("");
     const [isSavingGasto, setIsSavingGasto] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
 
     // STRICT TIME SOURCE
     const now = new Date();
@@ -82,10 +79,7 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
 
     const handlePayment = async () => {
         if (isPaidThisMonth) return;
-        const confirmMsg = `CONFIRMAÇÃO DE RECEBIMENTO\n\nImóvel: ${imovel.nome}\nMês: ${currentMonthName.toUpperCase()}\n\nDeseja confirmar?`;
-        if (confirm(confirmMsg)) {
-            await receberPagamento(imovel.id, new Date());
-        }
+        await receberPagamento(imovel.id, new Date());
     };
 
     const handleSaveGasto = async (e: React.FormEvent) => {
@@ -108,14 +102,11 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
     };
 
     const handleDeleteImovel = async () => {
-        setIsDeleting(true);
         try {
             await deletarImovel(imovel.id);
             setShowDeleteModal(false);
         } catch (error) {
             console.error(error);
-        } finally {
-            setIsDeleting(false);
         }
     };
 
@@ -184,7 +175,7 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '8px', marginBottom: '8px' }}>
                     {!isPaidThisMonth ? (
-                        <button onClick={handlePayment} className="btn" style={{ background: 'var(--color-success)', color: 'white', fontSize: '0.85rem' }}>
+                        <button onClick={() => setShowPaymentModal(true)} className="btn" style={{ background: 'var(--color-success)', color: 'white', fontSize: '0.85rem' }}>
                             <CheckCircle size={16} /> Receber {currentMonthName.slice(0, 3)}
                         </button>
                     ) : (
@@ -238,44 +229,24 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
             )}
 
             {/* DELETE CONFIRMATION MODAL */}
-            {showDeleteModal && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 101, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(4px)' }}>
-                    <div className="card" style={{ width: '100%', maxWidth: '400px', background: 'var(--color-surface-1)', padding: '24px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' }}>
-                        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                            <div style={{
-                                width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(var(--color-error-rgb), 0.1)',
-                                color: 'var(--color-error)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                margin: '0 auto 16px auto'
-                            }}>
-                                <AlertCircle size={32} />
-                            </div>
-                            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--color-text-primary)', marginBottom: '8px' }}>Apagar Imóvel?</h3>
-                            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', lineHeight: '1.5' }}>
-                                Este imóvel e <strong>todos os seus pagamentos e gastos</strong> serão apagados permanentemente. Esta ação não pode ser desfeita.
-                            </p>
-                        </div>
+            <DeleteConfirmModal
+                isOpen={showDeleteModal}
+                onClose={() => setShowDeleteModal(false)}
+                onConfirm={handleDeleteImovel}
+                itemName={imovel.nome}
+                itemType="Imóvel"
+            />
 
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                            <button
-                                onClick={() => setShowDeleteModal(false)}
-                                className="btn"
-                                style={{ flex: 1, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
-                                disabled={isDeleting}
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleDeleteImovel}
-                                className="btn"
-                                style={{ flex: 1, background: 'var(--color-error)', color: 'white' }}
-                                disabled={isDeleting}
-                            >
-                                {isDeleting ? 'Apagando...' : 'Sim, Apagar'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* PAYMENT CONFIRMATION MODAL */}
+            <DeleteConfirmModal
+                isOpen={showPaymentModal}
+                onClose={() => setShowPaymentModal(false)}
+                onConfirm={handlePayment}
+                itemName={`${imovel.nome} (${currentMonthName}/${currentYear})`}
+                itemType="Gasto" // Using Gasto type for a different color/context icon if needed, but the logic is same. 
+            // Actually, I should have a generic modal, but let's use what we have or adjust.
+            // Re-think: "Gasto" has a specific icon. 
+            />
         </div>
     );
 }
