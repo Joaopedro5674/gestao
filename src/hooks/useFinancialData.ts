@@ -1,4 +1,29 @@
 import { useApp } from "@/context/AppContext";
+import { ExportDataRow } from "@/utils/exportUtils";
+
+interface RentalSpreadsheetRow extends ExportDataRow {
+    property: string;
+    month: string;
+    rentValue: number;
+    status: string;
+    paymentDate: string;
+    revenue: number;
+    expenses: number;
+    netProfit: number;
+}
+
+interface LoanSpreadsheetRow extends ExportDataRow {
+    client: string;
+    principal: number;
+    rate: string;
+    days: number;
+    interest: number;
+    total: number;
+    status: string;
+    startDate: string;
+    dueDate: string;
+    paidDate: string;
+}
 
 export function useFinancialData() {
     const { imoveis, imoveisPagamentos, imoveisGastos, emprestimos, loading } = useApp();
@@ -60,7 +85,7 @@ export function useFinancialData() {
 
     // --- SPREADSHEET DATA GENERATION (History) ---
 
-    const rentalSpreadsheetData: any[] = [];
+    const rentalSpreadsheetData: RentalSpreadsheetRow[] = [];
 
     // 1. Collect all unique months from History (Payments + Expenses)
     const monthKeys = new Set<string>();
@@ -114,7 +139,7 @@ export function useFinancialData() {
     });
 
     // Loans Sheet
-    const loanSpreadsheetData = emprestimos.map(e => ({
+    const loanSpreadsheetData: LoanSpreadsheetRow[] = (emprestimos || []).map(e => ({
         client: e.cliente_nome,
         principal: e.valor_emprestado,
         rate: `${e.juros_mensal}%`,
@@ -122,8 +147,8 @@ export function useFinancialData() {
         interest: e.juros_total_contratado,
         total: e.valor_emprestado + e.juros_total_contratado,
         status: e.status === 'pago' ? 'Recebido' : 'Ativo',
-        startDate: new Date(e.data_inicio).toLocaleDateString('pt-BR'),
-        dueDate: new Date(e.data_fim).toLocaleDateString('pt-BR'),
+        startDate: e.data_inicio ? new Date(e.data_inicio).toLocaleDateString('pt-BR') : '-',
+        dueDate: e.data_fim ? new Date(e.data_fim).toLocaleDateString('pt-BR') : '-',
         paidDate: e.data_pagamento ? new Date(e.data_pagamento).toLocaleDateString('pt-BR') : '-'
     }));
 

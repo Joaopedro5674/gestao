@@ -9,6 +9,7 @@ export interface Imovel {
     nome: string;
     valor_aluguel: number;
     ativo: boolean;
+    dia_pagamento: number; // Day of month (1-31)
     created_at?: string;
     user_id?: string;
 }

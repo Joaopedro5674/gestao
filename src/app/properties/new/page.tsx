@@ -24,7 +24,8 @@ export default function NewPropertyPage() {
         adicionarImovel({
             nome: formData.name,
             valor_aluguel: parseFloat(formData.rentAmount.replace(',', '.')), // Handle PT-BR decimal
-            ativo: true
+            ativo: true,
+            dia_pagamento: parseInt(formData.paymentDay) || 10
         });
 
         router.push("/properties");

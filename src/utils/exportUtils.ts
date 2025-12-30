@@ -1,6 +1,11 @@
 import * as XLSX from 'xlsx';
 
-export function exportToCSV(data: any[], filename: string) {
+// Define a generic record type for export data
+export interface ExportDataRow {
+    [key: string]: string | number | boolean | null | undefined;
+}
+
+export function exportToCSV(data: ExportDataRow[], filename: string) {
     if (!data || data.length === 0) {
         console.warn("No data to export");
         return;
@@ -35,7 +40,7 @@ export function exportToCSV(data: any[], filename: string) {
 
 interface ExcelSheetData {
     name: string;
-    data: any[];
+    data: ExportDataRow[];
     metadata?: {
         label: string;
         value: string;
@@ -47,7 +52,7 @@ export function exportToExcel(sheets: ExcelSheetData[], filename: string) {
 
     sheets.forEach(sheet => {
         // Create an array with metadata rows first
-        const worksheetData: any[][] = [];
+        const worksheetData: (string | number | boolean | null | undefined)[][] = [];
 
         if (sheet.metadata && sheet.metadata.length > 0) {
             sheet.metadata.forEach(meta => {

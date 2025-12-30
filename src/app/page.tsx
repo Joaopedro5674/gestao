@@ -110,7 +110,6 @@ export default function Home() {
   // Fixed Month Ref for DB comparison (YYYY-MM-01)
   const currentMesRef = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
 
-  const todayDay = now.getDate();
   const monthName = now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
   const timeStr = now.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
@@ -124,47 +123,77 @@ export default function Home() {
     showToast("Download da planilha iniciado", "success");
   };
 
-  // --- ALERTS LOGIC (STRICT) ---
-  const alerts: { id: string; type: 'warning' | 'danger' | 'info'; title: string; subtitle: string; propertyId: string }[] = [];
+  // --- ALERTS LOGIC (STRICT - RENTAL & LOANS) ---
+  const alerts: { id: string; type: 'warning' | 'danger' | 'info'; title: string; subtitle: string; propertyId: string; sortScore: number }[] = [];
   let pendingRentalsCount = 0;
+
+  // 1. Get Today in Brazil (UTC-3)
+  const brOffset = -3;
+  const nowBr = new Date(new Date().getTime() + (brOffset * 60 * 60 * 1000) + (new Date().getTimezoneOffset() * 60 * 1000));
+  const todayDay = nowBr.getDate();
+  const currentMonthNum = nowBr.getMonth();
+  const currentYearNum = nowBr.getFullYear();
+
+  // Unified Month Ref for current check
+  const currentMesRefBr = `${currentYearNum}-${String(currentMonthNum + 1).padStart(2, '0')}-01`;
 
   // Rental Alerts
   imoveis.filter(p => p.ativo).forEach(imovel => {
-    const isPaid = imoveisPagamentos.some(p => {
-      return p.imovel_id === imovel.id && p.status === 'pago' && p.mes_ref === currentMesRef;
+    const isPaidCurrentMonth = imoveisPagamentos.some(p => {
+      return p.imovel_id === imovel.id && p.status === 'pago' && p.mes_ref === currentMesRefBr;
     });
 
-    if (!isPaid) {
-      pendingRentalsCount++;
-      // Assumption: 'paymentDay' doesn't exist on new Imovel schema yet? 
-      // The schema provided by user: id, nome, valor_aluguel, ativo, created_at, user_id.
-      // Missing 'dia_pagamento'.
-      // If it exists in DB but not schema description, I should check.
-      // If not, we can default to day 10 or check if I need to add it.
-      // User approval for table `imoveis` didn't explicitly mention `dia_pagamento`.
-      // Legacy `Property` had `paymentDay`.
-      // I'll assume for now we might need to add it or default to 5/10.
-      // Let's assume day 10 for safety if missing, or maybe I should check legacy data migration.
-      // Ideally, the user wants "Total Consistency".
-      // Let's use a standard day if not present.
-      const dueDay = 10; // Defaulting as field might be missing in new simplistic schema
-      const daysUntilDue = dueDay - todayDay;
+    const dueDay = imovel.dia_pagamento || 10;
 
-      if (daysUntilDue < 0) {
+    if (!isPaidCurrentMonth) {
+      pendingRentalsCount++;
+      // Check current month due date
+      const dueDate = new Date(currentYearNum, currentMonthNum, dueDay, 12, 0, 0);
+      const formattedDueDate = dueDate.toLocaleDateString('pt-BR');
+      const diffDays = dueDay - todayDay;
+
+      if (diffDays < 0) {
         alerts.push({
           id: `prop-${imovel.id}`,
           type: 'danger',
-          title: 'Aluguel Atrasado',
-          subtitle: `${imovel.nome} - Venceu dia ${dueDay}`,
-          propertyId: imovel.id
+          title: 'Aluguel Vencido',
+          subtitle: `${imovel.nome} - Venceu em ${formattedDueDate}`,
+          propertyId: imovel.id,
+          sortScore: 100
         });
-      } else if (daysUntilDue <= 3 && daysUntilDue >= 0) {
+      } else if (diffDays <= 3) {
+        const daysLabel = diffDays === 0 ? 'vence hoje' : diffDays === 1 ? 'vence em 1 dia' : `vence em ${diffDays} dias`;
         alerts.push({
           id: `prop-${imovel.id}`,
           type: 'warning',
-          title: daysUntilDue === 0 ? 'Vence Hoje' : 'Aluguel Próximo',
-          subtitle: `${imovel.nome} - Vence dia ${dueDay}`,
-          propertyId: imovel.id
+          title: diffDays === 0 ? 'Vence Hoje' : 'Próximo do Vencimento',
+          subtitle: `${imovel.nome} ${formattedDueDate.slice(0, 5)} (${daysLabel})`,
+          propertyId: imovel.id,
+          sortScore: 50
+        });
+      }
+    } else {
+      // LOOKAHEAD: Current month is paid, check next month
+      const nextMonthDate = new Date(currentYearNum, currentMonthNum + 1, 1, 12, 0, 0);
+      const nextMonthNum = nextMonthDate.getMonth();
+      const nextYearNum = nextMonthDate.getFullYear();
+
+      const nextDueDate = new Date(nextYearNum, nextMonthNum, dueDay, 12, 0, 0);
+      const formattedNextDueDate = nextDueDate.toLocaleDateString('pt-BR');
+
+      // Calculate diff between Next Due Date and Today
+      const diffTime = nextDueDate.getTime() - nowBr.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays >= 0 && diffDays <= 3) {
+        const daysLabel = diffDays === 0 ? 'vence hoje' : diffDays === 1 ? 'vence em 1 dia' : `vence em ${diffDays} dias`;
+        alerts.push({
+          id: `prop-${imovel.id}-next`,
+          type: 'warning',
+          title: 'Próximo Vencimento',
+          subtitle: `${imovel.nome} ${formattedNextDueDate.slice(0, 5)} (${daysLabel})`,
+          propertyId: imovel.id,
+          sortScore: 45 // Slightly lower than current month upcoming
         });
       }
     }
@@ -173,35 +202,37 @@ export default function Home() {
   // Loan Alerts
   emprestimos.filter(l => l.status === 'ativo' && l.data_fim).forEach(loan => {
     if (!loan.data_fim) return;
-    // data_fim is string YYYY-MM-DD
     const due = new Date(loan.data_fim + 'T12:00:00');
     due.setHours(0, 0, 0, 0);
-    const today = new Date();
+    const today = new Date(nowBr);
     today.setHours(0, 0, 0, 0);
 
     const diffTime = due.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const loanDiffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays < 0) {
+    if (loanDiffDays < 0) {
       alerts.push({
         id: `loan-${loan.id}`,
         type: 'danger',
         title: 'Empréstimo Atrasado',
         subtitle: `${loan.cliente_nome}`,
-        propertyId: `/loans/${loan.id}`
+        propertyId: `/loans/${loan.id}`,
+        sortScore: 90 // Below rent overdue
       });
-    } else if (diffDays <= 3 && diffDays >= 0) {
+    } else if (loanDiffDays <= 3) {
       alerts.push({
         id: `loan-${loan.id}`,
         type: 'warning',
-        title: diffDays === 0 ? 'Vence Hoje' : 'Empréstimo Vencendo',
+        title: loanDiffDays === 0 ? 'Vence Hoje' : 'Empréstimo Vencendo',
         subtitle: `${loan.cliente_nome} - ${due.toLocaleDateString('pt-BR')}`,
-        propertyId: `/loans/${loan.id}`
+        propertyId: `/loans/${loan.id}`,
+        sortScore: 40
       });
     }
   });
 
-  alerts.sort((a, b) => (a.type === 'danger' ? -1 : 1));
+  // Sort: Danger (higher score) first
+  alerts.sort((a, b) => b.sortScore - a.sortScore);
 
   const totalNetProfit = rentalNetProfit + totalLoanInterestContracted;
 
