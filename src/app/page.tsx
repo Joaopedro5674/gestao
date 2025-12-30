@@ -10,6 +10,8 @@ import { useFinancialData } from "@/hooks/useFinancialData";
 import { exportToCSV } from "@/utils/exportUtils";
 import { supabase } from "@/lib/supabaseClient";
 import SystemHealthModal from "@/components/SystemHealthModal";
+import SystemStatus from "@/components/SystemStatus";
+import LogViewer from "@/components/LogViewer";
 
 
 export default function Home() {
@@ -31,6 +33,7 @@ export default function Home() {
   const [now, setNow] = useState(new Date());
   const [refreshKey, setRefreshKey] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLogViewerOpen, setIsLogViewerOpen] = useState(false);
 
   // Health Check State
   const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
@@ -250,6 +253,9 @@ export default function Home() {
               </div>
               <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Dashboard</div>
               <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>{monthName} • {timeStr}</div>
+              <div style={{ marginTop: '8px' }}>
+                <SystemStatus />
+              </div>
             </div>
 
             <div style={{ textAlign: 'right' }}>
@@ -263,6 +269,9 @@ export default function Home() {
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                   <button onClick={handleCheckHealth} style={{ fontSize: '0.8rem', color: 'var(--color-text-primary)', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <ShieldCheck size={12} color="var(--color-primary)" /> Verificar Sistema
+                  </button>
+                  <button onClick={() => setIsLogViewerOpen(true)} style={{ fontSize: '0.8rem', color: 'var(--color-text-primary)', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Table size={12} /> Logs
                   </button>
                   <button onClick={handleRefresh} style={{ fontSize: '0.8rem', color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
                     Forçar Atualização
@@ -439,6 +448,8 @@ export default function Home() {
         isLoading={isCheckingHealth}
         healthData={healthData}
       />
+
+      {isLogViewerOpen && <LogViewer onClose={() => setIsLogViewerOpen(false)} />}
     </div>
   );
 }

@@ -41,6 +41,20 @@ export async function GET() {
             // Ignore error, goal is just to touch DB.
         }
 
+        // 4. UPDATE KV STORE (ANTI-HIBERNATION LOG)
+        // Store explicit timestamp for frontend monitoring
+        const { error: kvError } = await supabase
+            .from('system_health')
+            .upsert({
+                key: 'anti_hibernation_last_run',
+                value: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'key' });
+
+        if (kvError) {
+            console.error('Keep-Alive KV Update Error:', kvError);
+        }
+
         return NextResponse.json({ ok: true, timestamp: new Date().toISOString() }, { status: 200 });
 
     } catch (error) {

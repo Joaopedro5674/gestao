@@ -32,6 +32,8 @@ interface AppContextType {
     deletarEmprestimo: (id: string) => Promise<void>;
 
     refreshData: () => Promise<void>;
+    syncStatus: 'idle' | 'syncing' | 'error';
+    lastSync: Date | null;
 }
 
 const AppContext = createContext<AppContextType>({
@@ -51,6 +53,8 @@ const AppContext = createContext<AppContextType>({
     marcarEmprestimoPago: async () => { },
     deletarEmprestimo: async () => { },
     refreshData: async () => { },
+    syncStatus: 'idle',
+    lastSync: null
 });
 
 export const useApp = () => useContext(AppContext);
@@ -63,6 +67,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const [imoveisGastos, setImoveisGastos] = useState<ImovelGasto[]>([]);
     const [emprestimos, setEmprestimos] = useState<Emprestimo[]>([]);
     const [loading, setLoading] = useState(true);
+    const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
+    const [lastSync, setLastSync] = useState<Date | null>(null);
 
     // --- FETCH DATA (SUPABASE) ---
     // STRICT SOURCE OF TRUTH
@@ -84,6 +90,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
 
         setLoading(true);
+        setSyncStatus('syncing');
         try {
             console.log("Audit: Sincronizando dados para usuário", user.id);
             // 1. Imoveis
@@ -124,9 +131,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setImoveisGastos(gastosData || []);
             console.log("Audit: Sincronização concluída com sucesso.");
 
+            setLastSync(new Date());
+            setSyncStatus('idle');
         } catch (error) {
             console.error("Audit Critical: Erro de sincronização:", error);
             showToast("Erro ao sincronizar dados", "error");
+            setSyncStatus('error');
         } finally {
             setLoading(false);
         }
@@ -142,25 +152,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // IMOVEIS
     const adicionarImovel = async (imovel: Omit<Imovel, "id" | "created_at" | "user_id">) => {
         if (!user) return;
+        setSyncStatus('syncing');
 
-        // SECURITY: Force remove ID to prevent overwrite/upsert behavior on inserts
-        const { id, ...cleanPayload } = imovel as any;
-
-        console.log("Supabase: Adicionando imóvel (Payload Sanitizado):", cleanPayload);
         try {
-            const { data, error } = await supabase.from('imoveis').insert({
-                ...cleanPayload,
-                user_id: user.id
-            }).select();
+            // RPC ATOMIC CALL
+            const { data, error } = await supabase.rpc('criar_imovel_seguro', {
+                p_nome: imovel.nome,
+                p_cliente_nome: imovel.cliente_nome,
+                p_telefone: imovel.telefone,
+                p_endereco: imovel.endereco,
+                p_valor_aluguel: imovel.valor_aluguel,
+                p_ativo: imovel.ativo,
+                p_dia_pagamento: imovel.dia_pagamento
+            });
 
             if (error) throw error;
-            console.log("Supabase Success: Imóvel criado com novo UUID:", data);
+            if (!data.success) throw new Error(data.error || 'Erro desconhecido na RPC');
 
-            showToast("Imóvel adicionado", "success");
+            console.log("Supabase RPC Success: Imóvel criado:", data.id);
+            showToast("Imóvel adicionado com segurança", "success");
             await fetchData();
         } catch (e) {
-            console.error("Supabase Error (adicionarImovel):", e);
+            console.error("Supabase RPC Error:", e);
             showToast("Erro ao adicionar imóvel", "error");
+            setSyncStatus('error');
             throw e;
         }
     };
@@ -226,47 +241,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    // PAGAMENTOS REFACTOR
+    // PAGAMENTOS REFACTOR (RPC)
     const receberPagamento = async (imovelId: string, dataPagamento: Date) => {
         if (!user) {
             showToast("Usuário não autenticado", "error");
             return;
         }
 
-        // Strict MesRef: YYYY-MM-01 (ISO Fix)
         const year = dataPagamento.getFullYear();
         const month = String(dataPagamento.getMonth() + 1).padStart(2, '0');
         const mesRef = `${year}-${month}-01`;
+        const imovel = imoveis.find(i => i.id === imovelId);
+        if (!imovel) return;
 
-        console.log(`Supabase: Registrando pagamento para ${imovelId} em ${mesRef}...`);
+        setSyncStatus('syncing');
 
         try {
-            const imovel = imoveis.find(i => i.id === imovelId);
-            if (!imovel) throw new Error("Imóvel não encontrado localmente");
-
-            const payload = {
-                imovel_id: imovelId,
-                mes_ref: mesRef,
-                status: 'pago' as const,
-                data_pagamento: new Date().toISOString(),
-                valor_pago: imovel.valor_aluguel,
-                user_id: user.id
-            };
-
-            const { data, error } = await supabase
-                .from('imoveis_pagamentos')
-                .upsert(payload, { onConflict: 'imovel_id, mes_ref' })
-                .select();
+            // RPC ATOMIC CALL
+            const { data, error } = await supabase.rpc('registrar_pagamento_seguro', {
+                p_imovel_id: imovelId,
+                p_mes_ref: mesRef,
+                p_valor_pago: imovel.valor_aluguel
+            });
 
             if (error) throw error;
-            console.log("Supabase: Pagamento registrado:", data);
+            if (!data.success) throw new Error(data.error || 'Erro RPC');
 
-            showToast(`Pagamento recebido: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(imovel.valor_aluguel)}`, "success");
+            showToast(`Pagamento confirmado via RPC`, "success");
             await fetchData();
 
         } catch (e) {
-            console.error("Supabase Error (receberPagamento):", e);
+            console.error("RPC Error:", e);
             showToast("Erro ao processar pagamento", "error");
+            setSyncStatus('error');
             throw e;
         }
     };
@@ -316,27 +323,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    // EMPRESTIMOS
+    // EMPRESTIMOS (RPC)
     const adicionarEmprestimo = async (emprestimo: Omit<Emprestimo, "id" | "created_at" | "user_id">) => {
         if (!user) return;
+        setSyncStatus('syncing');
 
-        // SECURITY: Force remove ID
-        const { id, ...cleanPayload } = emprestimo as any;
-
-        console.log("Supabase: Criando empréstimo (Payload Sanitizado):", cleanPayload);
         try {
-            const { data, error } = await supabase.from('emprestimos').insert({
-                ...cleanPayload,
-                user_id: user.id
-            }).select();
-            if (error) throw error;
-            console.log("Supabase Success: Empréstimo criado com novo UUID:", data);
+            // RPC ATOMIC CALL
+            const { data, error } = await supabase.rpc('criar_emprestimo_seguro', {
+                p_cliente_nome: emprestimo.cliente_nome,
+                p_telefone: emprestimo.telefone,
+                p_valor_emprestado: emprestimo.valor_emprestado,
+                p_juros_mensal: emprestimo.juros_mensal,
+                p_dias_contratados: emprestimo.dias_contratados,
+                p_juros_total_contratado: emprestimo.juros_total_contratado,
+                p_data_inicio: emprestimo.data_inicio,
+                p_data_fim: emprestimo.data_fim
+            });
 
-            showToast("Empréstimo criado", "success");
+            if (error) throw error;
+            if (!data.success) throw new Error(data.error);
+
+            console.log("RPC Success: Empréstimo criado:", data.id);
+            showToast("Empréstimo criado com segurança", "success");
             await fetchData();
         } catch (e) {
-            console.error("Supabase Error (adicionarEmprestimo):", e);
+            console.error("RPC Error:", e);
             showToast("Erro ao criar empréstimo", "error");
+            setSyncStatus('error');
             throw e;
         }
     };
@@ -428,7 +442,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 atualizarEmprestimo,
                 marcarEmprestimoPago,
                 deletarEmprestimo,
-                refreshData: fetchData
+                refreshData: fetchData,
+                syncStatus,
+                lastSync
             }}
         >
             {children}
