@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Wallet, Building, TrendingUp, RefreshCw, Clock, AlertTriangle, CheckCircle, TrendingDown, Table, Download, LogOut } from "lucide-react";
+import { ArrowRight, Wallet, Building, TrendingUp, RefreshCw, Clock, AlertTriangle, CheckCircle, TrendingDown, Table, Download, LogOut, Activity, ShieldCheck } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect, useMemo } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { exportToCSV } from "@/utils/exportUtils";
+import { supabase } from "@/lib/supabaseClient";
+import SystemHealthModal from "@/components/SystemHealthModal";
 
 
 export default function Home() {
@@ -30,6 +32,16 @@ export default function Home() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Health Check State
+  const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
+  const [isCheckingHealth, setIsCheckingHealth] = useState(false);
+  const [healthData, setHealthData] = useState<{
+    supabase: boolean;
+    lastHeartbeat: string | null;
+    isHealthy: boolean;
+    checkedAt: string;
+  } | null>(null);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setNow(new Date());
@@ -46,6 +58,51 @@ export default function Home() {
       setIsRefreshing(false);
       showToast("Painel atualizado e recalculado", "success");
     }, 500);
+  };
+
+  const handleCheckHealth = async () => {
+    setIsCheckingHealth(true);
+    setIsHealthModalOpen(true);
+
+    try {
+      const start = Date.now();
+
+      // 1. Test Supabase Connection (Read-only)
+      const { data, error } = await supabase
+        .from('system_health')
+        .select('last_ping_at')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .single();
+
+      const supabaseConnected = !error;
+      const lastHeartbeat = data?.last_ping_at || null;
+
+      // 2. Determine Health
+      // Healthy if connected AND heartbeat is < 26 hours old (buffer over 24h)
+      let isHealthy = supabaseConnected && !!lastHeartbeat;
+      if (lastHeartbeat) {
+        const diff = Date.now() - new Date(lastHeartbeat).getTime();
+        if (diff > 26 * 60 * 60 * 1000) isHealthy = false;
+      }
+
+      setHealthData({
+        supabase: supabaseConnected,
+        lastHeartbeat,
+        isHealthy,
+        checkedAt: new Date().toISOString()
+      });
+
+    } catch (err) {
+      console.error("Health check failed:", err);
+      setHealthData({
+        supabase: false,
+        lastHeartbeat: null,
+        isHealthy: false,
+        checkedAt: new Date().toISOString()
+      });
+    } finally {
+      setIsCheckingHealth(false);
+    }
   };
 
   const currentYear = now.getFullYear();
@@ -176,10 +233,15 @@ export default function Home() {
                   {isRefreshing ? 'Atualizando...' : 'Dados Atualizados'}
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <button onClick={handleRefresh} style={{ fontSize: '0.8rem', color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
-                  Forçar Atualização
-                </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <button onClick={handleCheckHealth} style={{ fontSize: '0.8rem', color: 'var(--color-text-primary)', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <ShieldCheck size={12} color="var(--color-primary)" /> Verificar Sistema
+                  </button>
+                  <button onClick={handleRefresh} style={{ fontSize: '0.8rem', color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                    Forçar Atualização
+                  </button>
+                </div>
                 <button onClick={signOut} style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', borderLeft: '1px solid var(--color-border)', paddingLeft: '12px' }}>
                   <LogOut size={14} /> Sair
                 </button>
@@ -344,6 +406,13 @@ export default function Home() {
 
         </>
       )}
+
+      <SystemHealthModal
+        isOpen={isHealthModalOpen}
+        onClose={() => setIsHealthModalOpen(false)}
+        isLoading={isCheckingHealth}
+        healthData={healthData}
+      />
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useFinancialData } from "@/hooks/useFinancialData";
 import { ArrowLeft, Download, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { exportToCSV } from "@/utils/exportUtils";
+import { exportToExcel } from "@/utils/exportUtils";
 
 
 export default function SpreadsheetPage() {
@@ -16,15 +16,7 @@ export default function SpreadsheetPage() {
     if (loading) return <div className="p-8 text-center">Carregando dados...</div>;
 
     // --- FILTER LOGIC ---
-    // Rentals: "Active" usually means current month or unpaid? Or property isActive? 
-    // Requested: "Apenas imóveis ativos" (Properties active) - Use filter from hook source?
-    // The hook returns flat data. Let's assume filtering happens nicely or we filter by status.
-    // For Rentals in spreadsheet: status is 'Pago' or 'Pendente'. 
-    // Actually the user asked "Apenas imóveis ativos". My hook only includes validPropertyIds which are active.
-    // So for rentals, they are ALREADY filtered by active properties. 
-    // Maybe "Active" for loans means Status != Paid.
-
-    const filteredRentals = spreadsheet.rentals; // Already filtered by active properties in hook
+    const filteredRentals = spreadsheet.rentals;
 
     const filteredLoans = spreadsheet.loans.filter(l => {
         if (!filterActive) return true; // Show all
@@ -35,12 +27,52 @@ export default function SpreadsheetPage() {
 
     // --- SNAPSHOT EXPORT ---
     const handleExport = () => {
-        const formattedDate = now.toISOString().split('T')[0].split('-').reverse().join('-');
-        const formattedTime = now.toTimeString().split(' ')[0].replace(/:/g, '-').substring(0, 5); // HH-MM
-        const filename = `financeiro_${formattedDate}_${formattedTime}.xlsx`; // User said xlsx but my util matches csv? 
-        // The prompt said "financeiro_...xlsx" but my tool is exportToCSV. I will use .csv extension to be consistent with implementation.
-        // Or I can just name it .csv. 
-        exportToCSV(currentData, `financeiro_${formattedDate}_${formattedTime}.csv`);
+        const formattedDate = now.toLocaleDateString('pt-BR').replace(/\//g, '-');
+        const timestamp = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h');
+        const filename = `Relatorio_Financeiro_${formattedDate}_${timestamp}.xlsx`;
+
+        // Calculate period (from data if available, or just use current month as label)
+        const periodLabel = activeTab === 'rentals' && filteredRentals.length > 0
+            ? `Janeiro-${now.getFullYear()}` // Simplified period for internal branding
+            : 'Geral';
+
+        const metadata = [
+            { label: 'Data da Exportação', value: now.toLocaleString('pt-BR') },
+            { label: 'Sistema', value: 'Gestão Patrimonial' },
+        ];
+
+        exportToExcel([
+            {
+                name: 'Imóveis',
+                data: filteredRentals.map(r => ({
+                    'Imóvel': r.property,
+                    'Mês/Ano': r.month,
+                    'Valor Aluguel': r.rentValue,
+                    'Status': r.status,
+                    'Data Pagamento': r.paymentDate,
+                    'Receita': r.revenue,
+                    'Gastos': r.expenses,
+                    'Lucro Líquido': r.netProfit
+                })),
+                metadata: [...metadata, { label: 'Tipo', value: 'Relatório de Aluguéis' }]
+            },
+            {
+                name: 'Empréstimos',
+                data: filteredLoans.map(l => ({
+                    'Cliente': l.client,
+                    'Vlr Emprestado': l.principal,
+                    'Taxa': l.rate,
+                    'Dias': l.days,
+                    'Juros': l.interest,
+                    'Total Receber': l.total,
+                    'Status': l.status,
+                    'Início': l.startDate,
+                    'Vencimento': l.dueDate,
+                    'Pago Em': l.paidDate
+                })),
+                metadata: [...metadata, { label: 'Tipo', value: 'Relatório de Empréstimos' }]
+            }
+        ], filename);
     };
 
     // --- TOTALS ---
@@ -75,7 +107,7 @@ export default function SpreadsheetPage() {
                         className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium text-sm shadow-sm"
                     >
                         <Download size={16} />
-                        Exportar (.csv)
+                        Exportar Excel (.xlsx)
                     </button>
                 </div>
             </div>
