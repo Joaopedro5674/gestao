@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, TrendingUp, Eye, Edit2, CheckCircle, AlertTriangle, Calendar, Lock } from "lucide-react";
+import { Plus, TrendingUp, Eye, Edit2, CheckCircle, AlertTriangle, Calendar, Lock, Calculator } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/ToastProvider";
 import { Emprestimo } from "@/types";
+import { useState } from "react";
+import LoanCalculatorModal from "@/components/LoanCalculatorModal";
 
 export default function LoansPage() {
     const { emprestimos, loading } = useApp();
+    const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
 
     if (loading) {
         return <div className="container" style={{ textAlign: 'center', padding: 'var(--space-xl)' }}>Carregando...</div>;
@@ -15,11 +18,28 @@ export default function LoansPage() {
 
     return (
         <div className="container">
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-lg)' }}>
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-lg)', flexWrap: 'wrap', gap: '12px' }}>
                 <h1>Meus Empréstimos</h1>
-                <Link href="/loans/new" className="btn btn-primary" style={{ padding: '0.5rem 1rem' }}>
-                    <Plus size={20} /> <span style={{ marginLeft: '4px' }}>Novo</span>
-                </Link>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button
+                        onClick={() => setIsCalculatorOpen(true)}
+                        className="btn"
+                        style={{
+                            padding: '0.5rem 1rem',
+                            background: 'var(--color-surface-2)',
+                            border: '1px solid var(--color-border)',
+                            fontSize: '0.85rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                        }}
+                    >
+                        <Calculator size={18} /> Calcular Juros
+                    </button>
+                    <Link href="/loans/new" className="btn btn-primary" style={{ padding: '0.5rem 1rem' }}>
+                        <Plus size={20} /> <span style={{ marginLeft: '4px' }}>Novo</span>
+                    </Link>
+                </div>
             </header>
 
             {emprestimos.length === 0 ? (
@@ -38,6 +58,11 @@ export default function LoansPage() {
                     ))}
                 </div>
             )}
+
+            <LoanCalculatorModal
+                isOpen={isCalculatorOpen}
+                onClose={() => setIsCalculatorOpen(false)}
+            />
         </div>
     );
 }
