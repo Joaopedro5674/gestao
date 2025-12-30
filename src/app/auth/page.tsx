@@ -50,38 +50,39 @@ export default function AuthPage() {
             justifyContent: 'center',
             alignItems: 'center',
             padding: '24px',
-            background: 'linear-gradient(135deg, var(--color-background) 0%, var(--color-surface-2) 100%)'
+            background: '#F7F8FA'
         }}>
             <div className="card" style={{
                 width: '100%',
-                maxWidth: '400px',
-                padding: '32px',
-                boxShadow: 'var(--shadow-lg)',
-                border: '1px solid var(--color-border)',
-                background: 'white'
+                maxWidth: '420px',
+                padding: '40px',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+                border: '1px solid #E5E7EB',
+                background: '#FFFFFF',
+                borderRadius: '16px'
             }}>
                 {/* Header */}
                 <div style={{ textAlign: 'center', marginBottom: '32px' }}>
                     <div style={{
-                        width: '64px', height: '64px', background: 'var(--color-primary)', borderRadius: '16px',
+                        width: '64px', height: '64px', background: '#2563EB', borderRadius: '16px',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
-                        boxShadow: '0 4px 12px rgba(var(--color-primary-rgb), 0.3)'
+                        boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.2)'
                     }}>
                         <Lock color="white" size={32} />
                     </div>
-                    <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--color-text-primary)' }}>
+                    <h1 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#1F2937', letterSpacing: '-0.025em' }}>
                         {isSignUp ? "Criar Conta" : "Bem-vindo"}
                     </h1>
-                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
-                        {isSignUp ? "Registre-se para começar" : "Faça login para acessar suas finanças"}
+                    <p style={{ color: '#6B7280', fontSize: '1rem', marginTop: '8px' }}>
+                        {isSignUp ? "Registre-se para começar" : "Gerencie seu patrimônio com facilidade"}
                     </p>
                 </div>
 
                 {/* Form */}
                 <form onSubmit={handleAuth}>
-                    <div className="form-group" style={{ marginBottom: '16px' }}>
-                        <label className="label" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <Mail size={14} /> Email
+                    <div className="form-group" style={{ marginBottom: '20px' }}>
+                        <label className="label" style={{ display: 'flex', gap: '8px', alignItems: 'center', color: '#4B5563', fontWeight: '600', marginBottom: '8px' }}>
+                            <Mail size={16} color="#6B7280" /> Email
                         </label>
                         <input
                             type="email"
@@ -90,13 +91,20 @@ export default function AuthPage() {
                             onChange={(e) => setEmail(e.target.value)}
                             required
                             placeholder="seu@email.com"
-                            style={{ paddingLeft: '12px' }}
+                            style={{
+                                padding: '12px 16px',
+                                background: '#F9FAFB',
+                                border: '1px solid #D1D5DB',
+                                borderRadius: '10px',
+                                fontSize: '1rem',
+                                color: '#1F2937'
+                            }}
                         />
                     </div>
 
-                    <div className="form-group" style={{ marginBottom: '24px' }}>
-                        <label className="label" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <Lock size={14} /> Senha
+                    <div className="form-group" style={{ marginBottom: '28px' }}>
+                        <label className="label" style={{ display: 'flex', gap: '8px', alignItems: 'center', color: '#4B5563', fontWeight: '600', marginBottom: '8px' }}>
+                            <Lock size={16} color="#6B7280" /> Senha
                         </label>
                         <input
                             type="password"
@@ -106,38 +114,54 @@ export default function AuthPage() {
                             required
                             placeholder="••••••"
                             minLength={6}
+                            style={{
+                                padding: '12px 16px',
+                                background: '#F9FAFB',
+                                border: '1px solid #D1D5DB',
+                                borderRadius: '10px',
+                                fontSize: '1rem',
+                                color: '#1F2937'
+                            }}
                         />
                     </div>
 
                     <button
                         type="submit"
-                        className="btn btn-primary btn-full"
+                        className="btn btn-full"
                         disabled={loading}
                         style={{
-                            height: '48px',
+                            height: '52px',
                             fontSize: '1rem',
-                            fontWeight: '600',
-                            justifyContent: 'center'
+                            fontWeight: '700',
+                            justifyContent: 'center',
+                            background: '#2563EB',
+                            color: 'white',
+                            borderRadius: '10px',
+                            transition: 'all 0.2s ease',
+                            border: 'none',
+                            cursor: loading ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
                         }}
                     >
                         {loading ? <Loader2 className="spin-anim" /> : (
                             <>
-                                {isSignUp ? "Registrar" : "Entrar"} <ArrowRight size={18} style={{ marginLeft: '8px' }} />
+                                {isSignUp ? "Registrar" : "Entrar"} <ArrowRight size={18} />
                             </>
                         )}
                     </button>
                 </form>
 
                 {/* Footer / Toggle */}
-                <div style={{ textAlign: 'center', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--color-border-subtle)' }}>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+                <div style={{ textAlign: 'center', marginTop: '28px', paddingTop: '20px', borderTop: '1px solid #F3F4F6' }}>
+                    <p style={{ fontSize: '0.9rem', color: '#6B7280' }}>
                         {isSignUp ? "Já tem uma conta?" : "Não tem conta?"}
                         <button
                             onClick={() => setIsSignUp(!isSignUp)}
                             style={{
-                                background: 'none', border: 'none', color: 'var(--color-primary)',
-                                fontWeight: '700', cursor: 'pointer', marginLeft: '6px',
-                                textDecoration: 'underline'
+                                background: 'none', border: 'none', color: '#2563EB',
+                                fontWeight: '700', cursor: 'pointer', marginLeft: '6px'
                             }}
                         >
                             {isSignUp ? "Fazer Login" : "Criar agora"}
@@ -147,9 +171,9 @@ export default function AuthPage() {
             </div>
 
             {/* Safe badge */}
-            <div style={{ marginTop: '24px', display: 'flex', gap: '8px', alignItems: 'center', opacity: 0.6 }}>
-                <CheckCircle size={12} color="var(--color-success)" />
-                <span style={{ fontSize: '0.75rem', fontWeight: '500' }}>Ambiente Seguro</span>
+            <div style={{ marginTop: '32px', display: 'flex', gap: '8px', alignItems: 'center', opacity: 0.8 }}>
+                <CheckCircle size={14} color="#10B981" />
+                <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#6B7280' }}>Ambiente Criptografado e Seguro</span>
             </div>
         </div>
     );
