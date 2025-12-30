@@ -6,6 +6,7 @@ import { Plus, Home as HomeIcon, CheckCircle, AlertCircle, Search, BarChart3, X,
 import { useApp } from "@/context/AppContext";
 import { Imovel } from "@/types";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
+import ConfirmationModal from "@/components/ConfirmationModal";
 
 export default function PropertiesPage() {
     const { imoveis, loading } = useApp();
@@ -238,14 +239,15 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
             />
 
             {/* PAYMENT CONFIRMATION MODAL */}
-            <DeleteConfirmModal
+            {/* PAYMENT CONFIRMATION MODAL */}
+            <ConfirmationModal
                 isOpen={showPaymentModal}
                 onClose={() => setShowPaymentModal(false)}
                 onConfirm={handlePayment}
-                itemName={`${imovel.nome} (${currentMonthName}/${currentYear})`}
-                itemType="Gasto" // Using Gasto type for a different color/context icon if needed, but the logic is same. 
-            // Actually, I should have a generic modal, but let's use what we have or adjust.
-            // Re-think: "Gasto" has a specific icon. 
+                title="Confirmar Pagamento"
+                message={`Deseja registrar o pagamento do mês (${currentMonthName}/${currentYear}) para o imóvel ${imovel.nome}?`}
+                confirmText="Confirmar Recebimento"
+                variant="success"
             />
         </div>
     );

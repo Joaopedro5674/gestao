@@ -6,6 +6,7 @@ import { ChevronLeft, CheckCircle, Edit2, Phone, MapPin, User, History, BarChart
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/ToastProvider";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
+import ConfirmationModal from "@/components/ConfirmationModal";
 
 export default function PropertyDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
@@ -221,12 +222,14 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                 itemType="Imóvel"
             />
 
-            <DeleteConfirmModal
+            <ConfirmationModal
                 isOpen={showPaymentModal}
                 onClose={() => setShowPaymentModal(false)}
                 onConfirm={handlePayment}
-                itemName={`${imovel.nome} (${currentMonthName}/${currentYear})`}
-                itemType="Imóvel"
+                title="Confirmar Pagamento"
+                message={`Deseja registrar o pagamento do mês (${currentMonthName}/${currentYear}) para ${imovel.nome}?`}
+                confirmText="Confirmar Pagamento"
+                variant="success"
             />
         </div>
     );

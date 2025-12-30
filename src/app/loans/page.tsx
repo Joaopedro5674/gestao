@@ -7,7 +7,7 @@ import { useToast } from "@/components/ToastProvider";
 import { Emprestimo } from "@/types";
 import { useState } from "react";
 import LoanCalculatorModal from "@/components/LoanCalculatorModal";
-import DeleteConfirmModal from "@/components/DeleteConfirmModal";
+import ConfirmationModal from "@/components/ConfirmationModal";
 
 export default function LoansPage() {
     const { emprestimos, loading } = useApp();
@@ -214,12 +214,14 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
                 </div>
             </div>
 
-            <DeleteConfirmModal
+            <ConfirmationModal
                 isOpen={showPaidModal}
                 onClose={() => setShowPaidModal(false)}
                 onConfirm={handleMarkAsPaid}
-                itemName={`${emprestimo.cliente_nome} (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalReceivable)})`}
-                itemType="Empréstimo"
+                title="Finalizar Empréstimo"
+                message={`Tem certeza que deseja marcar o empréstimo de ${emprestimo.cliente_nome} como recebido e finalizado?`}
+                confirmText="Finalizar e Arquivar"
+                variant="success"
             />
         </div>
     );
