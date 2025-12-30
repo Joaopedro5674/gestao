@@ -9,6 +9,7 @@ import { useApp } from "@/context/AppContext";
 export default function NewLoanPage() {
     const router = useRouter();
     const { adicionarEmprestimo } = useApp();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [formData, setFormData] = useState({
         borrowerName: "",
@@ -42,8 +43,9 @@ export default function NewLoanPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.borrowerName || !principal || !formData.dueDate) return;
+        if (!formData.borrowerName || !principal || !formData.dueDate || isSubmitting) return;
 
+        setIsSubmitting(true);
         try {
             await adicionarEmprestimo({
                 cliente_nome: formData.borrowerName,
@@ -60,6 +62,7 @@ export default function NewLoanPage() {
             router.push("/loans");
         } catch (error) {
             console.error("Erro ao salvar empréstimo:", error);
+            setIsSubmitting(false); // Enable back only on error
         }
     };
 
@@ -174,8 +177,8 @@ export default function NewLoanPage() {
                     </div>
                 )}
 
-                <button type="submit" className="btn btn-primary btn-full" style={{ marginTop: 'var(--space-md)' }}>
-                    Criar Empréstimo
+                <button disabled={isSubmitting} type="submit" className="btn btn-primary btn-full" style={{ marginTop: 'var(--space-md)' }}>
+                    {isSubmitting ? 'Criando Empréstimo...' : 'Criar Empréstimo'}
                 </button>
             </form>
         </div>

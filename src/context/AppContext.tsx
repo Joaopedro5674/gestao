@@ -142,22 +142,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // IMOVEIS
     const adicionarImovel = async (imovel: Omit<Imovel, "id" | "created_at" | "user_id">) => {
         if (!user) return;
-        console.log("Supabase: Adicionando imóvel...", imovel);
+
+        // SECURITY: Force remove ID to prevent overwrite/upsert behavior on inserts
+        const { id, ...cleanPayload } = imovel as any;
+
+        console.log("Supabase: Adicionando imóvel (Payload Sanitizado):", cleanPayload);
         try {
             const { data, error } = await supabase.from('imoveis').insert({
-                ...imovel,
+                ...cleanPayload,
                 user_id: user.id
             }).select();
 
             if (error) throw error;
-            console.log("Supabase: Imóvel adicionado com sucesso:", data);
+            console.log("Supabase Success: Imóvel criado com novo UUID:", data);
 
             showToast("Imóvel adicionado", "success");
             await fetchData();
         } catch (e) {
             console.error("Supabase Error (adicionarImovel):", e);
             showToast("Erro ao adicionar imóvel", "error");
-            throw e; // Rethrow to prevent false success in UI
+            throw e;
         }
     };
 
@@ -273,9 +277,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             showToast("Usuário não autenticado", "error");
             return;
         }
+
+        // SECURITY: Force remove ID
+        const { id, ...cleanPayload } = gasto as any;
+
         try {
             const { error } = await supabase.from('imoveis_gastos').insert({
-                ...gasto,
+                ...cleanPayload,
                 user_id: user.id
             });
             if (error) throw error;
@@ -311,14 +319,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // EMPRESTIMOS
     const adicionarEmprestimo = async (emprestimo: Omit<Emprestimo, "id" | "created_at" | "user_id">) => {
         if (!user) return;
-        console.log("Supabase: Criando empréstimo...", emprestimo);
+
+        // SECURITY: Force remove ID
+        const { id, ...cleanPayload } = emprestimo as any;
+
+        console.log("Supabase: Criando empréstimo (Payload Sanitizado):", cleanPayload);
         try {
             const { data, error } = await supabase.from('emprestimos').insert({
-                ...emprestimo,
+                ...cleanPayload,
                 user_id: user.id
             }).select();
             if (error) throw error;
-            console.log("Supabase: Empréstimo criado:", data);
+            console.log("Supabase Success: Empréstimo criado com novo UUID:", data);
 
             showToast("Empréstimo criado", "success");
             await fetchData();

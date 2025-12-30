@@ -9,6 +9,7 @@ import { useApp } from "@/context/AppContext";
 export default function NewPropertyPage() {
     const router = useRouter();
     const { adicionarImovel } = useApp();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [formData, setFormData] = useState({
         name: "", // Identificação (Ex: Casa 01)
@@ -21,15 +22,16 @@ export default function NewPropertyPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.name || !formData.rentAmount) return;
+        if (!formData.name || !formData.rentAmount || isSubmitting) return;
 
+        setIsSubmitting(true);
         try {
             await adicionarImovel({
                 nome: formData.name,
                 cliente_nome: formData.clientName,
                 telefone: formData.phone,
                 endereco: formData.address,
-                valor_aluguel: parseFloat(formData.rentAmount.replace(',', '.')), // Handle PT-BR decimal
+                valor_aluguel: parseFloat(formData.rentAmount.replace(',', '.')),
                 ativo: true,
                 dia_pagamento: parseInt(formData.paymentDay) || 10
             });
@@ -37,7 +39,7 @@ export default function NewPropertyPage() {
             router.push("/properties");
         } catch (error) {
             console.error("Erro ao salvar imóvel:", error);
-            // Error is already shown by AppContext toast
+            setIsSubmitting(false); // Enable back only on error
         }
     };
 
@@ -126,8 +128,8 @@ export default function NewPropertyPage() {
                     </div>
                 </div>
 
-                <button type="submit" className="btn btn-primary btn-full" style={{ marginTop: 'var(--space-md)' }}>
-                    Salvar Imóvel
+                <button disabled={isSubmitting} type="submit" className="btn btn-primary btn-full" style={{ marginTop: 'var(--space-md)' }}>
+                    {isSubmitting ? 'Salvando...' : 'Salvar Imóvel'}
                 </button>
             </form>
         </div>
