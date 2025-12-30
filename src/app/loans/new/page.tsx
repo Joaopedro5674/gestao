@@ -40,23 +40,27 @@ export default function NewLoanPage() {
         total = principal + interest;
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.borrowerName || !principal || !formData.dueDate) return;
 
-        adicionarEmprestimo({
-            cliente_nome: formData.borrowerName,
-            telefone: formData.phone,
-            valor_emprestado: principal,
-            juros_mensal: rate,
-            dias_contratados: totalDays,
-            juros_total_contratado: interest,
-            data_inicio: formData.startDate,
-            data_fim: formData.dueDate,
-            status: 'ativo'
-        });
+        try {
+            await adicionarEmprestimo({
+                cliente_nome: formData.borrowerName,
+                telefone: formData.phone,
+                valor_emprestado: principal,
+                juros_mensal: rate,
+                dias_contratados: totalDays,
+                juros_total_contratado: interest,
+                data_inicio: formData.startDate,
+                data_fim: formData.dueDate,
+                status: 'ativo'
+            });
 
-        router.push("/loans");
+            router.push("/loans");
+        } catch (error) {
+            console.error("Erro ao salvar empréstimo:", error);
+        }
     };
 
     return (

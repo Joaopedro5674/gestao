@@ -127,29 +127,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // IMOVEIS
     const adicionarImovel = async (imovel: Omit<Imovel, "id" | "created_at" | "user_id">) => {
         if (!user) return;
+        console.log("Supabase: Adicionando imóvel...", imovel);
         try {
-            const { error } = await supabase.from('imoveis').insert({
+            const { data, error } = await supabase.from('imoveis').insert({
                 ...imovel,
                 user_id: user.id
-            });
+            }).select();
+
             if (error) throw error;
+            console.log("Supabase: Imóvel adicionado com sucesso:", data);
+
             showToast("Imóvel adicionado", "success");
             await fetchData();
         } catch (e) {
-            console.error(e);
+            console.error("Supabase Error (adicionarImovel):", e);
             showToast("Erro ao adicionar imóvel", "error");
+            throw e; // Rethrow to prevent false success in UI
         }
     };
 
     const atualizarImovel = async (id: string, updates: Partial<Imovel>) => {
+        console.log(`Supabase: Atualizando imóvel ${id}...`, updates);
         try {
-            const { error } = await supabase.from('imoveis').update(updates).eq('id', id);
+            const { data, error } = await supabase.from('imoveis').update(updates).eq('id', id).select();
             if (error) throw error;
+            console.log("Supabase: Imóvel atualizado com sucesso:", data);
+
             showToast("Imóvel atualizado", "success");
             await fetchData();
         } catch (e) {
-            console.error(e);
+            console.error("Supabase Error (atualizarImovel):", e);
             showToast("Erro ao atualizar imóvel", "error");
+            throw e;
         }
     };
 
@@ -185,13 +194,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             return;
         }
 
-        // Strict MesRef: YYYY-MM-01
+        // Strict MesRef: YYYY-MM-01 (ISO Fix)
         const year = dataPagamento.getFullYear();
-        const month = dataPagamento.getMonth() + 1;
-        const mesRef = `${year} -${String(month).padStart(2, '0')}-01`;
+        const month = String(dataPagamento.getMonth() + 1).padStart(2, '0');
+        const mesRef = `${year}-${month}-01`;
+
+        console.log(`Supabase: Registrando pagamento para ${imovelId} em ${mesRef}...`);
 
         try {
-            // 2. Get current Rent Value
             const imovel = imoveis.find(i => i.id === imovelId);
             if (!imovel) throw new Error("Imóvel não encontrado localmente");
 
@@ -199,27 +209,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 imovel_id: imovelId,
                 mes_ref: mesRef,
                 status: 'pago' as const,
-                data_pagamento: new Date().toISOString(), // Save exact time of click
+                data_pagamento: new Date().toISOString(),
                 valor_pago: imovel.valor_aluguel,
                 user_id: user.id
             };
 
-            // 3. Upsert (or Insert if UNIQUE key works)
-            // Using upsert on (imovel_id, mes_ref)
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('imoveis_pagamentos')
-                .upsert(payload, { onConflict: 'imovel_id, mes_ref' });
+                .upsert(payload, { onConflict: 'imovel_id, mes_ref' })
+                .select();
 
             if (error) throw error;
+            console.log("Supabase: Pagamento registrado:", data);
 
-            showToast(`Pagamento recebido: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(imovel.valor_aluguel)} `, "success");
-
-            // CRITICAL: Full fetch after success
+            showToast(`Pagamento recebido: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(imovel.valor_aluguel)}`, "success");
             await fetchData();
 
         } catch (e) {
-            console.error(e);
+            console.error("Supabase Error (receberPagamento):", e);
             showToast("Erro ao processar pagamento", "error");
+            throw e;
         }
     };
 
@@ -263,57 +272,73 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // EMPRESTIMOS
     const adicionarEmprestimo = async (emprestimo: Omit<Emprestimo, "id" | "created_at" | "user_id">) => {
         if (!user) return;
+        console.log("Supabase: Criando empréstimo...", emprestimo);
         try {
-            const { error } = await supabase.from('emprestimos').insert({
+            const { data, error } = await supabase.from('emprestimos').insert({
                 ...emprestimo,
                 user_id: user.id
-            });
+            }).select();
             if (error) throw error;
+            console.log("Supabase: Empréstimo criado:", data);
+
             showToast("Empréstimo criado", "success");
             await fetchData();
         } catch (e) {
-            console.error(e);
+            console.error("Supabase Error (adicionarEmprestimo):", e);
             showToast("Erro ao criar empréstimo", "error");
+            throw e;
         }
     };
 
     const atualizarEmprestimo = async (id: string, updates: Partial<Emprestimo>) => {
+        console.log(`Supabase: Atualizando empréstimo ${id}...`, updates);
         try {
-            const { error } = await supabase.from('emprestimos').update(updates).eq('id', id);
+            const { data, error } = await supabase.from('emprestimos').update(updates).eq('id', id).select();
             if (error) throw error;
+            console.log("Supabase: Empréstimo atualizado:", data);
+
             showToast("Empréstimo atualizado", "success");
             await fetchData();
         } catch (e) {
-            console.error(e);
+            console.error("Supabase Error (atualizarEmprestimo):", e);
             showToast("Erro ao atualizar empréstimo", "error");
+            throw e;
         }
     };
 
     const marcarEmprestimoPago = async (id: string) => {
+        console.log(`Supabase: Marcando empréstimo ${id} como PAGO...`);
         try {
-            const { error } = await supabase.from('emprestimos').update({
+            const { data, error } = await supabase.from('emprestimos').update({
                 status: 'pago',
                 data_pagamento: new Date().toISOString()
-            }).eq('id', id);
+            }).eq('id', id).select();
 
             if (error) throw error;
+            console.log("Supabase: Empréstimo finalizado:", data);
+
             showToast("Empréstimo marcado como pago", "success");
             await fetchData();
         } catch (e) {
-            console.error(e);
+            console.error("Supabase Error (marcarEmprestimoPago):", e);
             showToast("Erro ao atualizar empréstimo", "error");
+            throw e;
         }
     };
 
     const deletarEmprestimo = async (id: string) => {
+        console.log(`Supabase: Excluindo empréstimo ${id}...`);
         try {
             const { error } = await supabase.from('emprestimos').delete().eq('id', id);
             if (error) throw error;
+            console.log("Supabase: Empréstimo excluído.");
+
             showToast("Empréstimo excluído", "success");
             await fetchData();
         } catch (e) {
-            console.error(e);
+            console.error("Supabase Error (deletarEmprestimo):", e);
             showToast("Erro ao excluir empréstimo", "error");
+            throw e;
         }
     };
 

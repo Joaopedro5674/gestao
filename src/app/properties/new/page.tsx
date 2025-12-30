@@ -19,21 +19,26 @@ export default function NewPropertyPage() {
         paymentDay: "",
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.name || !formData.rentAmount) return;
 
-        adicionarImovel({
-            nome: formData.name,
-            cliente_nome: formData.clientName,
-            telefone: formData.phone,
-            endereco: formData.address,
-            valor_aluguel: parseFloat(formData.rentAmount.replace(',', '.')), // Handle PT-BR decimal
-            ativo: true,
-            dia_pagamento: parseInt(formData.paymentDay) || 10
-        });
+        try {
+            await adicionarImovel({
+                nome: formData.name,
+                cliente_nome: formData.clientName,
+                telefone: formData.phone,
+                endereco: formData.address,
+                valor_aluguel: parseFloat(formData.rentAmount.replace(',', '.')), // Handle PT-BR decimal
+                ativo: true,
+                dia_pagamento: parseInt(formData.paymentDay) || 10
+            });
 
-        router.push("/properties");
+            router.push("/properties");
+        } catch (error) {
+            console.error("Erro ao salvar imóvel:", error);
+            // Error is already shown by AppContext toast
+        }
     };
 
     return (
