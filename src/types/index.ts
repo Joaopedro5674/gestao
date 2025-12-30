@@ -10,6 +10,9 @@ export interface Imovel {
     valor_aluguel: number;
     ativo: boolean;
     dia_pagamento: number; // Day of month (1-31)
+    endereco?: string;
+    telefone?: string;
+    cliente_nome?: string;
     created_at?: string;
     user_id?: string;
 }
@@ -48,6 +51,7 @@ export interface Emprestimo {
     data_fim: string;    // YYYY-MM-DD
     status: 'ativo' | 'pago';
     data_pagamento?: string | null; // ISO Timestamp
+    telefone?: string;
     created_at?: string;
     user_id?: string;
 }

@@ -14,12 +14,7 @@ export default function LoanDetailsPage({ params }: { params: Promise<{ id: stri
     const { emprestimos, deletarEmprestimo } = useApp();
     const router = useRouter();
     const { showToast } = useToast();
-    const [emprestimo, setEmprestimo] = useState<Emprestimo | null>(null);
-
-    useEffect(() => {
-        const found = emprestimos.find((l) => l.id === id);
-        if (found) setEmprestimo(found);
-    }, [id, emprestimos]);
+    const emprestimo = emprestimos.find((l) => l.id === id) || null;
 
     if (!emprestimo) return <div className="container" style={{ padding: 'var(--space-xl)', textAlign: 'center' }}>Carregando...</div>;
 

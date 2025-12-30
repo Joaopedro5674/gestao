@@ -135,7 +135,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             if (error) throw error;
             showToast("Imóvel adicionado", "success");
             await fetchData();
-        } catch (e: any) {
+        } catch (e) {
             console.error(e);
             showToast("Erro ao adicionar imóvel", "error");
         }
@@ -147,7 +147,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             if (error) throw error;
             showToast("Imóvel atualizado", "success");
             await fetchData();
-        } catch (e: any) {
+        } catch (e) {
             console.error(e);
             showToast("Erro ao atualizar imóvel", "error");
         }
@@ -171,9 +171,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
             // CRITICAL: Full re-fetch to update all parts of the app (Dashboard, Reports, etc.)
             await fetchData();
-        } catch (e: any) {
-            console.error("Erro ao deletar imóvel:", e);
-            showToast("Erro ao excluir imóvel: " + (e.message || "Tente novamente"), "error");
+        } catch (e) {
+            const error = e as { message?: string };
+            console.error("Erro ao deletar imóvel:", error);
+            showToast("Erro ao excluir imóvel: " + (error.message || "Tente novamente"), "error");
         }
     };
 
@@ -187,7 +188,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // Strict MesRef: YYYY-MM-01
         const year = dataPagamento.getFullYear();
         const month = dataPagamento.getMonth() + 1;
-        const mesRef = `${year}-${String(month).padStart(2, '0')}-01`;
+        const mesRef = `${year} -${String(month).padStart(2, '0')}-01`;
 
         try {
             // 2. Get current Rent Value
@@ -211,12 +212,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
             if (error) throw error;
 
-            showToast(`Pagamento recebido: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(imovel.valor_aluguel)}`, "success");
+            showToast(`Pagamento recebido: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(imovel.valor_aluguel)} `, "success");
 
             // CRITICAL: Full fetch after success
             await fetchData();
 
-        } catch (e: any) {
+        } catch (e) {
             console.error(e);
             showToast("Erro ao processar pagamento", "error");
         }
@@ -238,7 +239,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
             // CRITICAL: Full fetch after success
             await fetchData();
-        } catch (e: any) {
+        } catch (e) {
             console.error(e);
             showToast("Erro ao adicionar gasto", "error");
         }
@@ -253,7 +254,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
             // CRITICAL: Full fetch after success
             await fetchData();
-        } catch (e: any) {
+        } catch (e) {
             console.error(e);
             showToast("Erro ao remover gasto", "error");
         }
@@ -270,7 +271,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             if (error) throw error;
             showToast("Empréstimo criado", "success");
             await fetchData();
-        } catch (e: any) {
+        } catch (e) {
             console.error(e);
             showToast("Erro ao criar empréstimo", "error");
         }
@@ -282,7 +283,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             if (error) throw error;
             showToast("Empréstimo atualizado", "success");
             await fetchData();
-        } catch (e: any) {
+        } catch (e) {
             console.error(e);
             showToast("Erro ao atualizar empréstimo", "error");
         }
@@ -298,7 +299,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             if (error) throw error;
             showToast("Empréstimo marcado como pago", "success");
             await fetchData();
-        } catch (e: any) {
+        } catch (e) {
             console.error(e);
             showToast("Erro ao atualizar empréstimo", "error");
         }
@@ -310,7 +311,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             if (error) throw error;
             showToast("Empréstimo excluído", "success");
             await fetchData();
-        } catch (e: any) {
+        } catch (e) {
             console.error(e);
             showToast("Erro ao excluir empréstimo", "error");
         }

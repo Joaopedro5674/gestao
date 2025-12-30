@@ -22,7 +22,7 @@ export default function ServiceWorkerRegister() {
         // "Se estiver rodando como PWA... Ajustar layout"
         const isStandalone =
             window.matchMedia("(display-mode: standalone)").matches ||
-            (window.navigator as any).standalone === true;
+            (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 
         if (isStandalone) {
             // Add a class to html for specific PWA styling if needed
@@ -31,16 +31,13 @@ export default function ServiceWorkerRegister() {
             // Fix for iOS Safari opening links in new window (occasionally happens)
             // We ensure internal links stay in the app.
             // (Next.js Link usually handles this, but this is a safeguard for 'window.location' dependency mentioned)
-            document.addEventListener("click", (e: any) => {
-                const target = e.target.closest("a");
+            document.addEventListener("click", (e: MouseEvent) => {
+                const target = (e.target as HTMLElement).closest("a");
                 if (!target) return;
 
                 const href = target.getAttribute("href");
-                const isExternal = href && (href.startsWith("http") || href.startsWith("//")) && !href.includes(window.location.hostname);
 
-                // If internal link and we rely on standard navigation, Next.js handles it.
-                // But for pure anchor tags, we might want to catch them. 
-                // Leaving this lightweight to avoid breaking Next.js router.
+                // internal link logic safeguard
             });
         }
     }, []);

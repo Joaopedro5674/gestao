@@ -12,6 +12,7 @@ export default function NewLoanPage() {
 
     const [formData, setFormData] = useState({
         borrowerName: "",
+        phone: "",
         principal: "",
         interestRate: "",
         startDate: new Date().toISOString().split('T')[0],
@@ -45,6 +46,7 @@ export default function NewLoanPage() {
 
         adicionarEmprestimo({
             cliente_nome: formData.borrowerName,
+            telefone: formData.phone,
             valor_emprestado: principal,
             juros_mensal: rate,
             dias_contratados: totalDays,
@@ -67,17 +69,29 @@ export default function NewLoanPage() {
             </header>
 
             <form onSubmit={handleSubmit} className="card">
-                <div className="form-group">
-                    <label className="label">Nome do Devedor</label>
-                    <input
-                        type="text"
-                        className="input"
-                        placeholder="Ex: João Silva"
-                        value={formData.borrowerName}
-                        onChange={(e) => setFormData({ ...formData, borrowerName: e.target.value })}
-                        required
-                        autoFocus
-                    />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+                    <div className="form-group">
+                        <label className="label">Nome do Devedor</label>
+                        <input
+                            type="text"
+                            className="input"
+                            placeholder="Ex: João Silva"
+                            value={formData.borrowerName}
+                            onChange={(e) => setFormData({ ...formData, borrowerName: e.target.value })}
+                            required
+                            autoFocus
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="label">Telefone</label>
+                        <input
+                            type="text"
+                            className="input"
+                            placeholder="(00) 00000-0000"
+                            value={formData.phone}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        />
+                    </div>
                 </div>
 
                 <div className="form-group">

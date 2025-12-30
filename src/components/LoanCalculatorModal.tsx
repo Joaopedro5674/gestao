@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { X, Calculator, Calendar, Info, Calculator as CalcIcon } from "lucide-react";
+import React, { useState } from "react";
+import { X, Calculator, Info } from "lucide-react";
 
 interface LoanCalculatorModalProps {
     isOpen: boolean;
@@ -14,45 +14,28 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
     const [dataInicio, setDataInicio] = useState<string>(new Date().toISOString().split('T')[0]);
     const [dataFim, setDataFim] = useState<string>("");
 
-    // Results
-    const [dias, setDias] = useState<number>(0);
-    const [jurosProporcional, setJurosProporcional] = useState<number>(0);
-    const [valorTotal, setValorTotal] = useState<number>(0);
-    const [isValid, setIsValid] = useState<boolean>(false);
+    // Live Calculations (Directly in body, no useEffect needed)
+    const start = dataInicio && dataFim ? new Date(dataInicio + 'T12:00:00') : null;
+    const end = dataInicio && dataFim ? new Date(dataFim + 'T12:00:00') : null;
+    const v = parseFloat(valorInicial);
+    const t = parseFloat(taxaMensal);
 
-    useEffect(() => {
-        if (!dataInicio || !dataFim || !valorInicial || !taxaMensal) {
-            setIsValid(false);
-            return;
-        }
+    let dias = 0;
+    let jurosProporcional = 0;
+    let valorTotal = 0;
+    let isValid = false;
 
-        const start = new Date(dataInicio + 'T12:00:00');
-        const end = new Date(dataFim + 'T12:00:00');
-
+    if (start && end && !isNaN(v) && !isNaN(t)) {
         const diffTime = end.getTime() - start.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        dias = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-        const v = parseFloat(valorInicial);
-        const t = parseFloat(taxaMensal);
-
-        if (diffDays >= 0 && v > 0 && t > 0) {
-            setDias(diffDays);
-
-            // Formula:
-            // 1. jurosMensal = valorInicial * (taxaMensal / 100)
-            // 2. jurosProporcional = jurosMensal * (dias / 30)
-            // 3. valorTotal = valorInicial + jurosProporcional
-
+        if (dias >= 0 && v > 0 && t > 0) {
             const jMensal = v * (t / 100);
-            const jProp = jMensal * (diffDays / 30);
-
-            setJurosProporcional(jProp);
-            setValorTotal(v + jProp);
-            setIsValid(true);
-        } else {
-            setIsValid(false);
+            jurosProporcional = jMensal * (dias / 30);
+            valorTotal = v + jurosProporcional;
+            isValid = true;
         }
-    }, [valorInicial, taxaMensal, dataInicio, dataFim]);
+    }
 
     if (!isOpen) return null;
 

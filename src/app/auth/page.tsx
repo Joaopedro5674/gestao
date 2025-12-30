@@ -35,8 +35,8 @@ export default function AuthPage() {
                 showToast("Login realizado com sucesso!", "success");
                 router.push("/");
             }
-        } catch (error: any) {
-            showToast(error.message || "Erro na autenticação", "error");
+        } catch (error) {
+            showToast((error as { message?: string }).message || "Erro na autenticação", "error");
         } finally {
             setLoading(false);
         }

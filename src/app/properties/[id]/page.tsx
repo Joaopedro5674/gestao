@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect } from "react";
 import Link from "next/link";
-import { ChevronLeft, CheckCircle } from "lucide-react";
+import { ChevronLeft, CheckCircle, Edit2, Phone, MapPin, User, History, BarChart3 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { Imovel, ImovelPagamento } from "@/types";
 import { useToast } from "@/components/ToastProvider";
@@ -14,28 +14,10 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
     const { imoveis, imoveisPagamentos, imoveisGastos, receberPagamento } = useApp();
     const { showToast } = useToast();
 
-    const [imovel, setImovel] = useState<Imovel | null>(null);
-    const [history, setHistory] = useState<ImovelPagamento[]>([]);
-
-    useEffect(() => {
-        if (imoveis.length > 0) {
-            const found = imoveis.find((p) => p.id === id);
-            if (found) setImovel(found);
-        }
-    }, [id, imoveis]);
-
-    useEffect(() => {
-        if (id) {
-            const propertyPayments = imoveisPagamentos.filter((p) => p.imovel_id === id);
-            // Sort by mes_ref desc (latest first)
-            propertyPayments.sort((a, b) => {
-                const dateA = new Date(a.mes_ref).getTime();
-                const dateB = new Date(b.mes_ref).getTime();
-                return dateB - dateA;
-            });
-            setHistory(propertyPayments);
-        }
-    }, [id, imoveisPagamentos]);
+    const imovel = imoveis.find((p) => p.id === id) || null;
+    const history = imoveisPagamentos
+        .filter((p) => p.imovel_id === id)
+        .sort((a, b) => new Date(b.mes_ref).getTime() - new Date(a.mes_ref).getTime());
 
     // Current Month Status Logic
     const now = new Date();
@@ -75,24 +57,37 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                 <Link href="/properties" style={{ padding: '8px', marginLeft: '-8px' }}>
                     <ChevronLeft size={24} />
                 </Link>
-                <h1 style={{ fontSize: '1.5rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <h1 style={{ fontSize: '1.5rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
                     {imovel.nome}
                 </h1>
+                <Link href={`/properties/${imovel.id}/edit`} className="btn" style={{ padding: '8px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
+                    <Edit2 size={14} /> Editar Cliente
+                </Link>
             </header>
 
             <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
-                <div style={{ marginBottom: 'var(--space-sm)' }}>
-                    <span className="label">Endereço</span>
-                    {/* Address removed from schema, just showing placeholder */}
-                    <div style={{ fontSize: '1rem' }}>-</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)', marginBottom: 'var(--space-sm)' }}>
+                    <div>
+                        <span className="label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><User size={12} /> Cliente</span>
+                        <div style={{ fontWeight: '600' }}>{imovel.cliente_nome || "Não informado"}</div>
+                    </div>
+                    <div>
+                        <span className="label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Phone size={12} /> Contato</span>
+                        <div style={{ fontWeight: '600' }}>{imovel.telefone || "Não informado"}</div>
+                    </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)', marginTop: 'var(--space-md)' }}>
-                    <div>
-                        <span className="label">Valor Aluguel</span>
-                        <div style={{ fontWeight: '700', fontSize: '1.1rem', color: 'var(--color-primary)' }}>
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(imovel.valor_aluguel)}
-                        </div>
+                <div style={{ marginBottom: 'var(--space-md)' }}>
+                    <span className="label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><MapPin size={12} /> Endereço</span>
+                    <div style={{ fontSize: '1rem', fontWeight: '500' }}>
+                        {imovel.endereco || <span style={{ color: 'var(--color-text-tertiary)', fontStyle: 'italic' }}>Endereço não informado</span>}
+                    </div>
+                </div>
+
+                <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-md)' }}>
+                    <span className="label">Valor Aluguel</span>
+                    <div style={{ fontWeight: '800', fontSize: '1.4rem', color: 'var(--color-primary)' }}>
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(imovel.valor_aluguel)}
                     </div>
                 </div>
             </div>
@@ -121,12 +116,12 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                 </div>
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-                    <div style={{ padding: '8px', color: 'var(--color-text-tertiary)', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                        Relatório Mensal (Últimos 12 meses)
+                    <div style={{ padding: '8px', color: 'var(--color-text-tertiary)', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <BarChart3 size={16} /> Relatório Financeiro (Resumido)
                     </div>
                     {history.map((payment) => {
                         const [y, m, d] = payment.mes_ref.split('-');
-                        const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
+                        const dateObj = new Date(Number(y), Number(m) - 1, Number(d), 12, 0, 0); // Noon to avoid timezone shift
                         const monthLabel = dateObj.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
 
                         // Calculate Expenses for this month reference
@@ -187,6 +182,28 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                             </div>
                         );
                     })}
+
+                    <div style={{ padding: '8px', marginTop: 'var(--space-md)', color: 'var(--color-text-tertiary)', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <History size={16} /> Histórico de Atividades
+                    </div>
+                    <div className="card" style={{ padding: 'var(--space-md)', display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
+                        {history.filter(p => p.status === 'pago').map(p => {
+                            const [y, m, d] = p.mes_ref.split('-');
+                            const refDate = new Date(Number(y), Number(m) - 1, Number(d), 12, 0, 0);
+                            return (
+                                <div key={`hist-${p.id}`} style={{ fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-surface-2)', paddingBottom: '8px' }}>
+                                    <span>Pagamento de <strong>{refDate.toLocaleString('pt-BR', { month: 'long' })}</strong> recebido</span>
+                                    <span style={{ color: 'var(--color-text-tertiary)' }}>{p.data_pagamento ? new Date(p.data_pagamento).toLocaleDateString('pt-BR') : '-'}</span>
+                                </div>
+                            );
+                        })}
+                        {imoveisGastos.filter(g => g.imovel_id === id).sort((a, b) => new Date(b.mes_ref).getTime() - new Date(a.mes_ref).getTime()).map(g => (
+                            <div key={`hist-g-${g.id}`} style={{ fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-surface-2)', paddingBottom: '8px' }}>
+                                <span style={{ color: 'var(--color-danger)' }}>Gasto: {g.descricao}</span>
+                                <span style={{ color: 'var(--color-text-tertiary)' }}>{new Date(g.mes_ref + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
         </div>

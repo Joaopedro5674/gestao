@@ -1,6 +1,6 @@
 "use client";
 
-import { useFinancialData } from "@/hooks/useFinancialData";
+import { useFinancialData, type RentalSpreadsheetRow, type LoanSpreadsheetRow } from "@/hooks/useFinancialData";
 import { ArrowLeft, Download, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -32,9 +32,9 @@ export default function SpreadsheetPage() {
         const filename = `Relatorio_Financeiro_${formattedDate}_${timestamp}.xlsx`;
 
         // Calculate period (from data if available, or just use current month as label)
-        const periodLabel = activeTab === 'rentals' && filteredRentals.length > 0
-            ? `Janeiro-${now.getFullYear()}` // Simplified period for internal branding
-            : 'Geral';
+        // const periodLabel = activeTab === 'rentals' && filteredRentals.length > 0
+        //     ? `Janeiro-${now.getFullYear()}` // Simplified period for internal branding
+        //     : 'Geral';
 
         const metadata = [
             { label: 'Data da Exportação', value: now.toLocaleString('pt-BR') },
@@ -76,9 +76,9 @@ export default function SpreadsheetPage() {
     };
 
     // --- TOTALS ---
-    const totalValue = currentData.reduce((acc: number, item: any) => {
-        if (activeTab === 'rentals') return acc + (item.netProfit || 0);
-        return acc + (item.total || 0);
+    const totalValue = currentData.reduce((acc: number, item) => {
+        if (activeTab === 'rentals') return acc + (('netProfit' in item ? (item.netProfit as number) : 0) || 0);
+        return acc + (('total' in item ? (item.total as number) : 0) || 0);
     }, 0);
 
     return (
@@ -176,28 +176,31 @@ export default function SpreadsheetPage() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    currentData.map((r: any, idx: number) => (
-                                        <tr key={idx} className="hover:bg-gray-50 transition">
-                                            <td className="px-4 py-3 font-medium text-gray-800">{r.property}</td>
-                                            <td className="px-4 py-3 text-gray-600">{r.month}</td>
-                                            <td className="px-4 py-3 text-right text-gray-800">
-                                                {r.rentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                            </td>
-                                            <td className="px-4 py-3 text-center">
-                                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${r.status === 'Pago' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                                                    }`}>
-                                                    {r.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-gray-600 text-xs">{r.paymentDate}</td>
-                                            <td className="px-4 py-3 text-right text-red-600">
-                                                - {r.expenses.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-bold text-blue-600">
-                                                {r.netProfit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                            </td>
-                                        </tr>
-                                    ))
+                                    currentData.map((item, idx: number) => {
+                                        const r = item as RentalSpreadsheetRow;
+                                        return (
+                                            <tr key={idx} className="hover:bg-gray-50 transition">
+                                                <td className="px-4 py-3 font-medium text-gray-800">{r.property}</td>
+                                                <td className="px-4 py-3 text-gray-600">{r.month || "N/A"}</td>
+                                                <td className="px-4 py-3 text-right text-gray-800">
+                                                    {(r.rentValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${r.status === 'Pago' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                                        }`}>
+                                                        {r.status || "N/A"}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-gray-600 text-xs">{r.paymentDate || "N/A"}</td>
+                                                <td className="px-4 py-3 text-right text-red-600">
+                                                    - {(r.expenses || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-bold text-blue-600">
+                                                    {(r.netProfit || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>
@@ -223,30 +226,33 @@ export default function SpreadsheetPage() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    currentData.map((l: any, idx: number) => (
-                                        <tr key={idx} className="hover:bg-gray-50 transition">
-                                            <td className="px-4 py-3 font-medium text-gray-800">{l.client}</td>
-                                            <td className="px-4 py-3 text-right text-gray-600">
-                                                {l.principal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                            </td>
-                                            <td className="px-4 py-3 text-center text-gray-500">{l.rate}</td>
-                                            <td className="px-4 py-3 text-center text-gray-500">{l.days}</td>
-                                            <td className="px-4 py-3 text-right text-green-600">
-                                                + {l.interest.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-bold text-gray-800">
-                                                {l.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                            </td>
-                                            <td className="px-4 py-3 text-center">
-                                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${l.status === 'Recebido' ? 'bg-green-100 text-green-700' :
-                                                    l.status === 'Ativo' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
-                                                    }`}>
-                                                    {l.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right text-xs text-gray-500">{l.dateReceived}</td>
-                                        </tr>
-                                    ))
+                                    currentData.map((item, idx: number) => {
+                                        const l = item as LoanSpreadsheetRow;
+                                        return (
+                                            <tr key={idx} className="hover:bg-gray-50 transition">
+                                                <td className="px-4 py-3 font-medium text-gray-800">{l.client}</td>
+                                                <td className="px-4 py-3 text-right text-gray-600">
+                                                    {(l.principal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                                <td className="px-4 py-3 text-center text-gray-500">{l.rate || "0%"}</td>
+                                                <td className="px-4 py-3 text-center text-gray-500">{l.days || 0}</td>
+                                                <td className="px-4 py-3 text-right text-green-600">
+                                                    + {(l.interest || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-bold text-gray-800">
+                                                    {(l.total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${l.status === 'Recebido' ? 'bg-green-100 text-green-700' :
+                                                        l.status === 'Ativo' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                                                        }`}>
+                                                        {l.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-xs text-gray-500">{l.dateReceived || "---"}</td>
+                                            </tr>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>

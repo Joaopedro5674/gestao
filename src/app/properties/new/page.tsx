@@ -11,7 +11,9 @@ export default function NewPropertyPage() {
     const { adicionarImovel } = useApp();
 
     const [formData, setFormData] = useState({
-        name: "",
+        name: "", // Identificação (Ex: Casa 01)
+        clientName: "",
+        phone: "",
         address: "",
         rentAmount: "",
         paymentDay: "",
@@ -23,6 +25,9 @@ export default function NewPropertyPage() {
 
         adicionarImovel({
             nome: formData.name,
+            cliente_nome: formData.clientName,
+            telefone: formData.phone,
+            endereco: formData.address,
             valor_aluguel: parseFloat(formData.rentAmount.replace(',', '.')), // Handle PT-BR decimal
             ativo: true,
             dia_pagamento: parseInt(formData.paymentDay) || 10
@@ -42,7 +47,7 @@ export default function NewPropertyPage() {
 
             <form onSubmit={handleSubmit} className="card">
                 <div className="form-group">
-                    <label className="label">Nome / Identificação</label>
+                    <label className="label">Identificação do Imóvel</label>
                     <input
                         type="text"
                         className="input"
@@ -52,6 +57,29 @@ export default function NewPropertyPage() {
                         required
                         autoFocus
                     />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+                    <div className="form-group">
+                        <label className="label">Nome do Cliente</label>
+                        <input
+                            type="text"
+                            className="input"
+                            placeholder="Nome Completo"
+                            value={formData.clientName}
+                            onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="label">Telefone</label>
+                        <input
+                            type="text"
+                            className="input"
+                            placeholder="(00) 00000-0000"
+                            value={formData.phone}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        />
+                    </div>
                 </div>
 
                 <div className="form-group">

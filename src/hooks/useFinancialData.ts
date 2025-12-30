@@ -1,8 +1,10 @@
 import { useApp } from "@/context/AppContext";
 import { ExportDataRow } from "@/utils/exportUtils";
 
-interface RentalSpreadsheetRow extends ExportDataRow {
+export interface RentalSpreadsheetRow extends ExportDataRow {
     property: string;
+    address: string;
+    phone: string;
     month: string;
     rentValue: number;
     status: string;
@@ -12,8 +14,9 @@ interface RentalSpreadsheetRow extends ExportDataRow {
     netProfit: number;
 }
 
-interface LoanSpreadsheetRow extends ExportDataRow {
+export interface LoanSpreadsheetRow extends ExportDataRow {
     client: string;
+    phone: string;
     principal: number;
     rate: string;
     days: number;
@@ -127,6 +130,8 @@ export function useFinancialData() {
 
             rentalSpreadsheetData.push({
                 property: imovel.nome,
+                address: imovel.endereco || "Não informado",
+                phone: imovel.telefone || "Não informado",
                 month: ym, // YYYY-MM
                 rentValue: imovel.valor_aluguel,
                 status: isPaid ? 'Pago' : 'Pendente',
@@ -141,6 +146,7 @@ export function useFinancialData() {
     // Loans Sheet
     const loanSpreadsheetData: LoanSpreadsheetRow[] = (emprestimos || []).map(e => ({
         client: e.cliente_nome,
+        phone: e.telefone || "Não informado",
         principal: e.valor_emprestado,
         rate: `${e.juros_mensal}%`,
         days: e.dias_contratados,

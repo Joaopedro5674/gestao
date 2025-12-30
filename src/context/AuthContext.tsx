@@ -9,7 +9,7 @@ interface AuthContextType {
     user: User | null;
     session: Session | null;
     loading: boolean;
-    signInWithEmail: (email: string) => Promise<{ error: any }>;
+    signInWithEmail: (email: string) => Promise<{ error: Error | string | null }>;
     signOut: () => Promise<void>;
 }
 
@@ -55,7 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => subscription.unsubscribe();
     }, [pathname, router]);
 
-    const signInWithEmail = async (email: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const signInWithEmail = async (_email: string) => {
         // Magic Link Login (Passwordless implies simplicity, but user might want password. 
         // Plan said Email/Password. Let's stick to Magic Link for "Premium/Modern" or Password? 
         // User request "autenticação com supabase". 

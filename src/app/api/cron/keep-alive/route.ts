@@ -20,7 +20,7 @@ export async function GET() {
             table: 'imoveis',
             count
         });
-    } catch (e: any) {
-        return NextResponse.json({ status: 'error', message: e.message }, { status: 500 });
+    } catch (e) {
+        return NextResponse.json({ status: 'error', message: (e as Error).message }, { status: 500 });
     }
 }

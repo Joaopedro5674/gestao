@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, TrendingUp, Eye, Edit2, CheckCircle, AlertTriangle, Calendar, Lock, Calculator } from "lucide-react";
+import { Plus, TrendingUp, Eye, Edit2, CheckCircle, AlertTriangle, Calendar, Lock, Calculator, Phone } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/ToastProvider";
 import { Emprestimo } from "@/types";
@@ -146,7 +146,14 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
                         <div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--color-text-primary)' }}>
                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(emprestimo.valor_emprestado)}
                         </div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: '600', marginTop: '4px', color: 'var(--color-text-secondary)' }}>{emprestimo.cliente_nome}</h3>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <h3 style={{ textTransform: 'capitalize', margin: 0 }}>{emprestimo.cliente_nome}</h3>
+                            {emprestimo.telefone && (
+                                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <Phone size={12} /> {emprestimo.telefone}
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '0.85rem', color: 'var(--color-text-tertiary)', marginBottom: '2px' }}>Lucro Líquido</div>
@@ -170,33 +177,40 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    {!isPaid ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    {!isPaid && (
                         <button
                             onClick={handleMarkAsPaid}
                             className="btn btn-primary"
-                            style={{ flex: 2, background: 'var(--color-success)', color: 'white', boxShadow: 'var(--shadow-sm)' }}
+                            style={{ gridColumn: 'span 2', background: 'var(--color-success)', color: 'white', boxShadow: 'var(--shadow-sm)', padding: '0.8rem' }}
                         >
-                            <CheckCircle size={18} style={{ marginRight: '6px' }} /> Confirmar Pagamento
+                            <CheckCircle size={18} style={{ marginRight: '6px' }} /> Marcar como Recebido e Finalizar
                         </button>
-                    ) : (
+                    )}
+
+                    {isPaid && (
                         <div
-                            style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.9rem', color: 'var(--color-text-tertiary)', background: 'var(--color-surface-2)', borderRadius: 'var(--radius-md)', fontWeight: '500', border: '1px dashed var(--color-border)', cursor: 'not-allowed' }}
-                            title="Pagamento já recebido este mês"
+                            style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.9rem', color: 'var(--color-text-tertiary)', background: 'var(--color-surface-2)', borderRadius: 'var(--radius-md)', fontWeight: '500', border: '1px dashed var(--color-border)', cursor: 'not-allowed', padding: '0.8rem' }}
                         >
                             <Lock size={16} /> Pago em {emprestimo.data_pagamento ? new Date(emprestimo.data_pagamento).toLocaleDateString('pt-BR') : '-'}
                         </div>
                     )}
 
-                    <Link href={`/loans/${emprestimo.id}`} className="btn" style={{ flex: 1, background: 'var(--color-surface-2)', padding: '0 12px' }}>
-                        <Eye size={20} />
+                    <Link
+                        href={`/loans/${emprestimo.id}/edit`}
+                        className="btn"
+                        style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                    >
+                        <Edit2 size={16} /> Editar Cliente
                     </Link>
-                    {/* Disabling Edit unless needed 
-                    {!isPaid && (
-                        <Link href={`/loans/${emprestimo.id}/edit`} className="btn" style={{ flex: 1, background: 'var(--color-surface-2)', padding: '0 12px' }}>
-                            <Edit2 size={20} />
-                        </Link>
-                    )} */}
+
+                    <Link
+                        href={`/loans/${emprestimo.id}`}
+                        className="btn"
+                        style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                    >
+                        <Eye size={16} /> Ver Detalhes
+                    </Link>
                 </div>
             </div>
         </div>
