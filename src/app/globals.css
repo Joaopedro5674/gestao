@@ -49,21 +49,27 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Dark Mode Adjustments */
-    --color-background: hsl(240, 10%, 5%);
-    --color-surface-1: hsl(240, 10%, 10%);
-    --color-surface-2: hsl(240, 10%, 15%);
-    --color-surface-elevated: hsl(240, 10%, 12%);
+    /* Financial Modern Deep Dark Theme */
+    --color-background: #0F1115;
+    --color-surface-1: #1F2937;
+    /* Card background */
+    --color-surface-2: #111827;
+    /* Input/Sub-surface background */
+    --color-surface-elevated: #2D3748;
 
-    --color-text-primary: hsl(0, 0%, 95%);
-    --color-text-secondary: hsl(240, 5%, 65%);
-    --color-text-tertiary: hsl(240, 5%, 45%);
+    --color-text-primary: #F9FAFB;
+    --color-text-secondary: #9CA3AF;
+    --color-text-tertiary: #6B7280;
 
-    --color-border: hsl(240, 5%, 20%);
-    --color-border-hover: hsl(240, 5%, 30%);
+    --color-border: #374151;
+    --color-border-hover: #4B5563;
 
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+    --color-primary: #3B82F6;
+    /* Blue Focus/Primary */
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.7);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
   }
 }
 
@@ -145,7 +151,8 @@ p {
   transition: all 0.2s ease;
   cursor: pointer;
   border: none;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
 }
 
 .btn-primary {
@@ -159,8 +166,20 @@ p {
   transform: scale(0.98);
 }
 
-.btn-full {
-  width: 100%;
+.btn-success {
+  background: var(--color-text-primary);
+  color: var(--color-background);
+}
+
+.btn-danger-outline {
+  background: transparent;
+  border: 1.5px solid rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+.btn-danger-outline:hover {
+  background: rgba(239, 68, 68, 0.05);
+  border-color: #ef4444;
 }
 
 /* Mobile Navigation Bottom Padding */
@@ -175,10 +194,12 @@ main {
 
 .label {
   display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
-  margin-bottom: var(--space-xs);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 8px;
   color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .input {
@@ -233,4 +254,12 @@ main {
   .hide-mobile {
     display: none !important;
   }
+}
+
+.hover-primary:hover {
+  color: var(--color-primary) !important;
+}
+
+section+section {
+  margin-top: var(--space-lg);
 }

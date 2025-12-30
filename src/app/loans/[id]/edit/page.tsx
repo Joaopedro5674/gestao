@@ -2,7 +2,7 @@
 
 import { useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Trash2 } from "lucide-react";
+import { ChevronLeft, Trash2, Save, User, DollarSign, Percent, Calendar, Phone } from "lucide-react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { Emprestimo } from "@/types";
@@ -43,21 +43,28 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
     }
 
     return (
-        <div className="container">
-            <header style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--space-lg)', gap: 'var(--space-sm)' }}>
-                <Link href={`/loans/${id}`} style={{ padding: '8px', marginLeft: '-8px' }}>
-                    <ChevronLeft size={24} />
-                </Link>
-                <h1 style={{ marginTop: '-4px' }}>Editar Empréstimo</h1>
-            </header>
+        <main style={{ minHeight: '100vh', background: 'var(--color-background)', padding: 'var(--space-md) 0' }}>
+            <div className="container" style={{ maxWidth: '800px' }}>
+                <header style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--space-xl)', gap: 'var(--space-sm)' }}>
+                    <Link href={`/loans/${id}`} style={{
+                        padding: '10px',
+                        marginLeft: '-10px',
+                        color: 'var(--color-text-secondary)',
+                        transition: 'color 0.2s'
+                    }} className="hover-primary">
+                        <ChevronLeft size={24} />
+                    </Link>
+                    <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.03em' }}>Editar Empréstimo</h1>
+                </header>
 
-            <LoanEditForm
-                loan={loan}
-                onSubmit={atualizarEmprestimo}
-                onDelete={deletarEmprestimo}
-                onSuccess={() => router.push(`/loans/${id}`)}
-            />
-        </div>
+                <LoanEditForm
+                    loan={loan}
+                    onSubmit={atualizarEmprestimo}
+                    onDelete={deletarEmprestimo}
+                    onSuccess={() => router.push(`/loans/${id}`)}
+                />
+            </div>
+        </main>
     );
 }
 
@@ -96,74 +103,121 @@ function LoanEditForm({
     };
 
     return (
-        <form onSubmit={handleSubmit} className="card shadow-sm">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-md)' }}>
-                <div className="form-group">
-                    <label>Nome do Tomador</label>
-                    <input
-                        type="text"
-                        value={formData.borrowerName}
-                        onChange={(e) => setFormData({ ...formData, borrowerName: e.target.value })}
-                        required
-                    />
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
+
+            {/* Seção 1: Dados do Tomador */}
+            <section className="card" style={{ padding: 'var(--space-lg)', border: '1px solid var(--color-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: 'var(--space-lg)', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-sm)' }}>
+                    <User size={18} color="var(--color-primary)" />
+                    <h2 style={{ fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-text-primary)' }}>Dados do Tomador</h2>
                 </div>
 
-                <div className="form-group">
-                    <label>Telefone</label>
-                    <input
-                        type="text"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        placeholder="(00) 00000-0000"
-                    />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-lg)' }}>
                     <div className="form-group">
-                        <label>Valor Emprestado (R$)</label>
+                        <label className="label">Nome Completo</label>
                         <input
                             type="text"
-                            value={formData.principal}
-                            onChange={(e) => setFormData({ ...formData, principal: e.target.value })}
+                            className="input"
+                            value={formData.borrowerName}
+                            onChange={(e) => setFormData({ ...formData, borrowerName: e.target.value })}
+                            placeholder="Nome do cliente"
                             required
                         />
                     </div>
                     <div className="form-group">
-                        <label>Juros Mensal (%)</label>
+                        <label className="label">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <Phone size={12} /> Telefone
+                            </div>
+                        </label>
                         <input
                             type="text"
-                            value={formData.interestRate}
-                            onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })}
-                            required
+                            className="input"
+                            value={formData.phone}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                            placeholder="(00) 00000-0000"
                         />
                     </div>
                 </div>
+            </section>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
-                    <div className="form-group">
-                        <label>Data de Início</label>
-                        <input
-                            type="date"
-                            value={formData.startDate}
-                            onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                            required
-                        />
+            {/* Seção 2: Detalhes do Empréstimo */}
+            <section className="card" style={{ padding: 'var(--space-lg)', border: '1px solid var(--color-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: 'var(--space-lg)', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-sm)' }}>
+                    <DollarSign size={18} color="var(--color-primary)" />
+                    <h2 style={{ fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-text-primary)' }}>Condições Financeiras</h2>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-lg)' }}>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-lg)' }}>
+                        <div className="form-group">
+                            <label className="label">Valor Emprestado</label>
+                            <input
+                                type="text"
+                                className="input"
+                                style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-primary)' }}
+                                value={formData.principal}
+                                onChange={(e) => setFormData({ ...formData, principal: e.target.value })}
+                                placeholder="0,00"
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="label">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <Percent size={12} /> Taxa Mensal
+                                </div>
+                            </label>
+                            <input
+                                type="text"
+                                className="input"
+                                value={formData.interestRate}
+                                onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })}
+                                placeholder="0,00"
+                                required
+                            />
+                        </div>
                     </div>
-                    <div className="form-group">
-                        <label>Data de Vencimento</label>
-                        <input
-                            type="date"
-                            value={formData.dueDate}
-                            onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                            required
-                        />
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-lg)' }}>
+                        <div className="form-group">
+                            <label className="label">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <Calendar size={12} /> Data de Início
+                                </div>
+                            </label>
+                            <input
+                                type="date"
+                                className="input"
+                                value={formData.startDate}
+                                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="label">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <Calendar size={12} /> Data de Vencimento
+                                </div>
+                            </label>
+                            <input
+                                type="date"
+                                className="input"
+                                value={formData.dueDate}
+                                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                                required
+                            />
+                        </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div style={{ marginTop: 'var(--space-xl)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-                <button type="submit" className="btn btn-full">
-                    Salvar Alterações
+            {/* Ações */}
+            <div style={{ marginTop: 'var(--space-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+                <button type="submit" className="btn btn-success" style={{ height: '56px', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}>
+                    <Save size={20} style={{ marginRight: '10px' }} />
+                    <span style={{ fontWeight: 700 }}>Salvar Alterações</span>
                 </button>
 
                 <button
@@ -174,8 +228,8 @@ function LoanEditForm({
                             router.push("/loans");
                         }
                     }}
-                    className="btn btn-full"
-                    style={{ background: 'transparent', border: '1px solid var(--color-danger)', color: 'var(--color-danger)' }}
+                    className="btn btn-danger-outline"
+                    style={{ height: '52px', borderRadius: '12px', marginTop: '12px' }}
                 >
                     <Trash2 size={18} style={{ marginRight: '8px' }} /> Apagar Registro
                 </button>
