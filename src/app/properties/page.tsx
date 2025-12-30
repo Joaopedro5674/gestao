@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Plus, Home as HomeIcon, Eye, Edit2, CheckCircle, Calendar, AlertCircle, Search, BarChart3, X, Trash2 } from "lucide-react";
+import { Plus, Home as HomeIcon, Eye, Edit2, CheckCircle, Calendar, AlertCircle, Search, BarChart3, X, Trash2, Lock } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/ToastProvider";
 import { Imovel } from "@/types";
@@ -165,9 +165,19 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
                     <button
                         onClick={() => setShowDeleteModal(true)}
                         className="btn"
-                        style={{ background: 'rgba(var(--color-error-rgb), 0.1)', color: 'var(--color-error)', border: '1px solid rgba(var(--color-error-rgb), 0.2)', padding: '6px' }}
-                        title="Apagar Imóvel"
+                        style={{
+                            background: 'var(--color-error)',
+                            color: 'white',
+                            border: '1px solid rgba(0,0,0,0.1)',
+                            padding: '6px',
+                            boxShadow: 'var(--shadow-sm)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                        }}
+                        title="Ação Irreversível: Apagar imóvel e todos os registros relacionados"
                     >
+                        <AlertCircle size={14} />
                         <Trash2 size={16} />
                     </button>
                 </div>
@@ -178,8 +188,13 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
                             <CheckCircle size={16} /> Receber {currentMonthName.slice(0, 3)}
                         </button>
                     ) : (
-                        <button disabled className="btn" style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-tertiary)', fontSize: '0.8rem', cursor: 'not-allowed', border: '1px solid var(--color-border)' }}>
-                            <CheckCircle size={16} /> Pago
+                        <button
+                            disabled
+                            className="btn"
+                            style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-tertiary)', fontSize: '0.8rem', cursor: 'not-allowed', border: '1px solid var(--color-border)', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                            title="Pagamento já recebido este mês"
+                        >
+                            <Lock size={14} /> Pago
                         </button>
                     )}
                     <button onClick={() => setShowGastoModal(true)} className="btn" style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-primary)', border: '1px solid var(--color-border)', fontSize: '0.8rem' }}>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, TrendingUp, Eye, Edit2, CheckCircle, AlertTriangle, Calendar } from "lucide-react";
+import { Plus, TrendingUp, Eye, Edit2, CheckCircle, AlertTriangle, Calendar, Lock } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/ToastProvider";
 import { Emprestimo } from "@/types";
@@ -155,8 +155,11 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
                             <CheckCircle size={18} style={{ marginRight: '6px' }} /> Confirmar Pagamento
                         </button>
                     ) : (
-                        <div style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.9rem', color: 'var(--color-text-tertiary)', background: 'var(--color-surface-2)', borderRadius: 'var(--radius-md)', fontWeight: '500', border: '1px dashed var(--color-border)' }}>
-                            <Calendar size={16} /> Pago em {emprestimo.data_pagamento ? new Date(emprestimo.data_pagamento).toLocaleDateString('pt-BR') : '-'}
+                        <div
+                            style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.9rem', color: 'var(--color-text-tertiary)', background: 'var(--color-surface-2)', borderRadius: 'var(--radius-md)', fontWeight: '500', border: '1px dashed var(--color-border)', cursor: 'not-allowed' }}
+                            title="Pagamento já recebido este mês"
+                        >
+                            <Lock size={16} /> Pago em {emprestimo.data_pagamento ? new Date(emprestimo.data_pagamento).toLocaleDateString('pt-BR') : '-'}
                         </div>
                     )}
 
