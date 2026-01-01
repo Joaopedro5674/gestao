@@ -132,6 +132,14 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
                             <CheckCircle size={8} /> Juros Garantidos
                         </div>
                     )}
+
+                    {emprestimo.cobranca_mensal && (
+                        <div style={{
+                            fontSize: '0.6rem', background: 'var(--color-primary)', color: 'white', padding: '2px 6px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '2px'
+                        }} title="Cobrança mensal de juros ativa">
+                            <CheckCircle size={8} /> Juros Mensais
+                        </div>
+                    )}
                 </div>
 
                 <span style={{ color: 'var(--color-text-tertiary)', fontWeight: 'normal', fontSize: '0.8rem' }}>

@@ -10,7 +10,7 @@ import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 export default function LoanDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
     const { id } = resolvedParams;
-    const { emprestimos, deletarEmprestimo } = useApp();
+    const { emprestimos, deletarEmprestimo, emprestimosMeses, pagarParcelaJuros } = useApp();
     const router = useRouter();
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const emprestimo = emprestimos.find((l) => l.id === id) || null;
@@ -161,6 +161,87 @@ export default function LoanDetailsPage({ params }: { params: Promise<{ id: stri
                     </div>
                 </div>
             </div>
+
+            {/* MODELO 2: MONTHLY INTEREST SECTION */}
+            {emprestimo.cobranca_mensal && !isPaid && (
+                <div style={{ marginTop: 'var(--space-lg)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-md)', paddingBottom: '8px', borderBottom: '1px solid var(--color-border)' }}>
+                        <Clock size={18} color="var(--color-text-secondary)" />
+                        <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Juros Mensais</h3>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {emprestimosMeses
+                            .filter(m => m.emprestimo_id === emprestimo.id && !m.pago)
+                            .sort((a, b) => a.mes_referencia.localeCompare(b.mes_referencia))
+                            .map((mes) => {
+                                const now = new Date();
+                                const currentYear = now.getFullYear();
+                                const currentMonthIdx = now.getMonth() + 1;
+                                const currentMonthStr = `${currentYear}-${String(currentMonthIdx).padStart(2, '0')}`;
+
+                                const isPast = mes.mes_referencia < currentMonthStr;
+                                const isCurrent = mes.mes_referencia === currentMonthStr;
+                                const isFuture = mes.mes_referencia > currentMonthStr;
+                                const isReleased = isPast || isCurrent;
+
+                                // Format Month YYYY-MM -> Month Name
+                                const [mYear, mMonth] = mes.mes_referencia.split('-');
+                                const dateObj = new Date(parseInt(mYear), parseInt(mMonth) - 1, 1);
+                                const monthName = dateObj.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+                                const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+
+                                return (
+                                    <div key={mes.id} className="card" style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: isPast ? '4px solid var(--color-danger)' : (isCurrent ? '4px solid var(--color-success)' : '4px solid var(--color-border)') }}>
+                                        <div>
+                                            <div style={{ fontWeight: 600, fontSize: '1rem' }}>{capitalizedMonth}</div>
+                                            <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(mes.valor_juros)}
+                                            </div>
+
+                                            <div style={{ marginTop: '6px' }}>
+                                                {isPast && (
+                                                    <span style={{ fontSize: '0.75rem', color: 'var(--color-danger)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        <AlertTriangle size={12} /> Atrasado
+                                                    </span>
+                                                )}
+                                                {isCurrent && (
+                                                    <span style={{ fontSize: '0.75rem', color: 'var(--color-success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        <CheckCircle size={12} /> Mês atual
+                                                    </span>
+                                                )}
+                                                {isFuture && (
+                                                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        <Clock size={12} /> Aguardando mês
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {isReleased ? (
+                                            <button
+                                                className="btn btn-primary"
+                                                style={{ fontSize: '0.8rem', padding: '8px 16px' }}
+                                                onClick={() => pagarParcelaJuros(mes.id)}
+                                            >
+                                                Pagar juros
+                                            </button>
+                                        ) : (
+                                            <div style={{ opacity: 0.5 }}>
+                                                {/* No button for future */}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        {emprestimosMeses.filter(m => m.emprestimo_id === emprestimo.id && !m.pago).length === 0 && (
+                            <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
+                                Todos os juros mensais estão em dia!
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Admin Actions: Always available */}
             <div style={{ marginTop: 'var(--space-xl)' }}>

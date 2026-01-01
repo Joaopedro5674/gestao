@@ -20,12 +20,12 @@ export interface Imovel {
 export interface ImovelPagamento {
     id: string;
     imovel_id: string;
-    mes_ref: string; // YYYY-MM-01 (Strict Date)
-    status: 'pendente' | 'pago';
-    data_pagamento?: string | null; // ISO Timestamp
-    valor_pago?: number | null;
+    mes_referencia: string; // YYYY-MM
+    status: 'pendente' | 'pago' | 'atrasado';
+    pago_em?: string | null; // ISO Timestamp
+    valor?: number | null;
     created_at?: string;
-    user_id?: string;
+    user_id: string;
 }
 
 export interface ImovelGasto {
@@ -54,4 +54,16 @@ export interface Emprestimo {
     telefone?: string;
     created_at?: string;
     user_id?: string;
+    cobranca_mensal?: boolean;
+}
+
+export interface EmprestimoMes {
+    id: string;
+    emprestimo_id: string;
+    user_id: string;
+    mes_referencia: string; // YYYY-MM
+    valor_juros: number;
+    pago: boolean;
+    pago_em?: string | null;
+    created_at?: string;
 }

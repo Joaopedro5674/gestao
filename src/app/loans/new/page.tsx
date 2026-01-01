@@ -18,6 +18,7 @@ export default function NewLoanPage() {
         interestRate: "",
         startDate: new Date().toISOString().split('T')[0],
         dueDate: "",
+        monthlyInterest: false
     });
 
     // Validations
@@ -56,7 +57,8 @@ export default function NewLoanPage() {
                 juros_total_contratado: interest,
                 data_inicio: formData.startDate,
                 data_fim: formData.dueDate,
-                status: 'ativo'
+                status: 'ativo',
+                cobranca_mensal: formData.monthlyInterest
             });
 
             router.push("/loans");
@@ -125,6 +127,51 @@ export default function NewLoanPage() {
                         required
                         step="0.1"
                     />
+                </div>
+
+                <div style={{ marginBottom: 'var(--space-md)' }}>
+                    <div
+                        onClick={() => setFormData({ ...formData, monthlyInterest: !formData.monthlyInterest })}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            background: 'var(--color-surface-2)',
+                            padding: '12px',
+                            borderRadius: '8px',
+                            border: formData.monthlyInterest ? '1px solid var(--color-primary)' : '1px solid transparent',
+                            cursor: 'pointer',
+                            userSelect: 'none'
+                        }}>
+                        <div
+                            style={{
+                                width: '44px',
+                                height: '26px',
+                                background: formData.monthlyInterest ? 'var(--color-primary)' : '#ccc',
+                                borderRadius: '24px',
+                                position: 'relative',
+                                transition: 'background 0.2s',
+                                flexShrink: 0
+                            }}
+                        >
+                            <div style={{
+                                width: '20px',
+                                height: '20px',
+                                background: '#fff',
+                                borderRadius: '50%',
+                                position: 'absolute',
+                                top: '3px',
+                                left: formData.monthlyInterest ? '21px' : '3px',
+                                transition: 'left 0.2s'
+                            }} />
+                        </div>
+                        <div>
+                            <span style={{ display: 'block', fontWeight: 500 }}>Cobrança de juros mensal</span>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                                {formData.monthlyInterest ? 'O cliente deve pagar os juros mensalmente' : 'Juros acumulam para o final (Padrão)'}
+                            </span>
+                        </div>
+                    </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>

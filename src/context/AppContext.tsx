@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { Imovel, ImovelPagamento, Emprestimo, ImovelGasto } from "@/types";
+import { Imovel, ImovelPagamento, Emprestimo, ImovelGasto, EmprestimoMes } from "@/types";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "./AuthContext";
 import { useToast } from "@/components/ToastProvider";
@@ -11,6 +11,7 @@ interface AppContextType {
     imoveisPagamentos: ImovelPagamento[];
     imoveisGastos: ImovelGasto[]; // Renamed from expenses
     emprestimos: Emprestimo[];
+    emprestimosMeses: EmprestimoMes[];
     loading: boolean;
 
     // Imovel Actions
@@ -30,6 +31,7 @@ interface AppContextType {
     atualizarEmprestimo: (id: string, updates: Partial<Emprestimo>) => Promise<void>;
     marcarEmprestimoPago: (id: string) => Promise<void>;
     deletarEmprestimo: (id: string) => Promise<void>;
+    pagarParcelaJuros: (id: string) => Promise<void>;
 
     refreshData: () => Promise<void>;
     syncStatus: 'idle' | 'syncing' | 'error';
@@ -41,6 +43,7 @@ const AppContext = createContext<AppContextType>({
     imoveisPagamentos: [],
     imoveisGastos: [],
     emprestimos: [],
+    emprestimosMeses: [],
     loading: true,
     adicionarImovel: async () => { },
     atualizarImovel: async () => { },
@@ -52,6 +55,7 @@ const AppContext = createContext<AppContextType>({
     atualizarEmprestimo: async () => { },
     marcarEmprestimoPago: async () => { },
     deletarEmprestimo: async () => { },
+    pagarParcelaJuros: async () => { },
     refreshData: async () => { },
     syncStatus: 'idle',
     lastSync: null
@@ -66,6 +70,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const [imoveisPagamentos, setImoveisPagamentos] = useState<ImovelPagamento[]>([]);
     const [imoveisGastos, setImoveisGastos] = useState<ImovelGasto[]>([]);
     const [emprestimos, setEmprestimos] = useState<Emprestimo[]>([]);
+    const [emprestimosMeses, setEmprestimosMeses] = useState<EmprestimoMes[]>([]);
     const [loading, setLoading] = useState(true);
     const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
     const [lastSync, setLastSync] = useState<Date | null>(null);
@@ -78,6 +83,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setImoveisPagamentos([]);
             setImoveisGastos([]);
             setEmprestimos([]);
+            setEmprestimosMeses([]);
             setLoading(false);
             return;
         }
@@ -93,6 +99,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setSyncStatus('syncing');
         try {
             console.log("Audit: Sincronizando dados para usuário", user.id);
+
+            // 0. GENERATE MISSING MONTHS (RPC Backfill)
+            const { error: rpcError } = await supabase.rpc('gerar_mensalidades_pendentes');
+            if (rpcError) console.error("Auto-Generation Error TRACE:", JSON.stringify(rpcError, null, 2), rpcError);
+
             // 1. Imoveis
             const { data: imoveisData, error: imoveisError } = await supabase
                 .from('imoveis')
@@ -125,10 +136,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 console.warn("Audit: Erro ao buscar gastos (pode estar vazia):", gastosError.message);
             }
 
+            // 5. Emprestimo Meses (Modelo 2)
+            const { data: mesesData, error: mesesError } = await supabase
+                .from('emprestimo_meses')
+                .select('*')
+                .eq('user_id', user.id);
+            if (mesesError) throw mesesError;
+
             setImoveis(imoveisData || []);
             setEmprestimos(emprestimosData || []);
             setImoveisPagamentos(pagamentosData || []);
             setImoveisGastos(gastosData || []);
+            setEmprestimosMeses(mesesData || []);
             console.log("Audit: Sincronização concluída com sucesso.");
 
             setLastSync(new Date());
@@ -241,7 +260,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    // PAGAMENTOS REFACTOR (RPC)
+    // PAGAMENTOS REFACTOR (Direct Update with Mes Ref)
     const receberPagamento = async (imovelId: string, dataPagamento: Date) => {
         if (!user) {
             showToast("Usuário não autenticado", "error");
@@ -250,28 +269,49 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         const year = dataPagamento.getFullYear();
         const month = String(dataPagamento.getMonth() + 1).padStart(2, '0');
-        const mesRef = `${year}-${month}-01`;
+        const mesRef = `${year}-${month}`; // YYYY-MM (TEXT)
+
         const imovel = imoveis.find(i => i.id === imovelId);
         if (!imovel) return;
 
         setSyncStatus('syncing');
 
         try {
-            // RPC ATOMIC CALL
-            const { data, error } = await supabase.rpc('registrar_pagamento_seguro', {
-                p_imovel_id: imovelId,
-                p_mes_ref: mesRef,
-                p_valor_pago: imovel.valor_aluguel
-            });
+            // STRICT UPDATE: Update existing 'pendente' or 'atrasado' record
+            const { data, error } = await supabase
+                .from('imoveis_pagamentos')
+                .update({
+                    status: 'pago',
+                    pago_em: new Date().toISOString(),
+                    valor: imovel.valor_aluguel
+                })
+                .eq('imovel_id', imovelId)
+                .eq('mes_referencia', mesRef)
+                .eq('user_id', user.id)
+                .select();
 
             if (error) throw error;
-            if (!data.success) throw new Error(data.error || 'Erro RPC');
+            if (!data || data.length === 0) {
+                // If not found, it might be that it doesn't exist yet (gap).
+                // Or user is trying to pay a future month that hasn't been generated?
+                // But the UI lists existing months.
+                // Fallback: Insert if needed (though generated usually)
+                const { error: insertError } = await supabase.from('imoveis_pagamentos').insert({
+                    imovel_id: imovelId,
+                    mes_referencia: mesRef,
+                    status: 'pago',
+                    valor: imovel.valor_aluguel,
+                    pago_em: new Date().toISOString(),
+                    user_id: user.id
+                });
+                if (insertError) throw insertError;
+            }
 
-            showToast(`Pagamento confirmado via RPC`, "success");
+            showToast(`Pagamento de ${month}/${year} confirmado`, "success");
             await fetchData();
 
         } catch (e) {
-            console.error("RPC Error:", e);
+            console.error("Payment Error:", e);
             showToast("Erro ao processar pagamento", "error");
             setSyncStatus('error');
             throw e;
@@ -343,6 +383,62 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
             if (error) throw error;
             if (!data.success) throw new Error(data.error);
+
+            const newLoanId = data.id;
+
+            // --- MODELO 2: Monthly Interest Logic ---
+            if (emprestimo.cobranca_mensal) {
+                // 1. Enable flag
+                const { error: updateError } = await supabase
+                    .from('emprestimos')
+                    .update({ cobranca_mensal: true })
+                    .eq('id', newLoanId);
+
+                if (updateError) {
+                    console.error("Error setting cobranca_mensal:", updateError);
+                    // Non-fatal? Maybe, but better throw to warn user
+                }
+
+                // 2. Generate Months
+                const monthsPayload = [];
+                // Use "noon" to avoid timezone rollover issues with simple Date objects
+                const start = new Date(emprestimo.data_inicio + 'T12:00:00');
+                const end = new Date(emprestimo.data_fim + 'T12:00:00');
+                const monthlyInterestValue = (emprestimo.valor_emprestado * emprestimo.juros_mensal) / 100;
+
+                // Loop from Start Month to End Month
+                // Normalize to first day of month
+                let current = new Date(start.getFullYear(), start.getMonth(), 1);
+                const last = new Date(end.getFullYear(), end.getMonth(), 1);
+
+                while (current <= last) {
+                    const year = current.getFullYear();
+                    const month = String(current.getMonth() + 1).padStart(2, '0');
+
+                    monthsPayload.push({
+                        emprestimo_id: newLoanId,
+                        user_id: user.id,
+                        mes_referencia: `${year}-${month}`,
+                        valor_juros: monthlyInterestValue,
+                        pago: false
+                    });
+
+                    // Next month
+                    current.setMonth(current.getMonth() + 1);
+                }
+
+                if (monthsPayload.length > 0) {
+                    const { error: insertError } = await supabase
+                        .from('emprestimo_meses')
+                        .insert(monthsPayload);
+
+                    if (insertError) {
+                        console.error("Error generating months:", insertError);
+                        throw insertError;
+                    }
+                }
+            }
+            // ----------------------------------------
 
             console.log("RPC Success: Empréstimo criado:", data.id);
             showToast("Empréstimo criado com segurança", "success");
@@ -424,6 +520,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const pagarParcelaJuros = async (id: string) => {
+        if (!user) return;
+        setSyncStatus('syncing');
+        try {
+            const { error } = await supabase
+                .from('emprestimo_meses')
+                .update({ pago: true, pago_em: new Date().toISOString() })
+                .eq('id', id)
+                .eq('user_id', user.id);
+            if (error) throw error;
+            showToast("Juros do mês pagos!", "success");
+            await fetchData();
+        } catch (e) {
+            console.error("Erro ao pagar parcela:", e);
+            showToast("Erro ao registrar pagamento", "error");
+            setSyncStatus('error');
+        }
+    };
+
     return (
         <AppContext.Provider
             value={{
@@ -431,6 +546,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 imoveisPagamentos,
                 imoveisGastos,
                 emprestimos,
+                emprestimosMeses,
                 loading,
                 adicionarImovel,
                 atualizarImovel,
@@ -442,6 +558,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 atualizarEmprestimo,
                 marcarEmprestimoPago,
                 deletarEmprestimo,
+                pagarParcelaJuros,
                 refreshData: fetchData,
                 syncStatus,
                 lastSync

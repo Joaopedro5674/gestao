@@ -29,7 +29,7 @@ export interface LoanSpreadsheetRow extends ExportDataRow {
 }
 
 export function useFinancialData() {
-    const { imoveis, imoveisPagamentos, imoveisGastos, emprestimos, loading } = useApp();
+    const { imoveis, imoveisPagamentos, imoveisGastos, emprestimos, emprestimosMeses, loading } = useApp();
 
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -75,7 +75,7 @@ export function useFinancialData() {
     // 4. Loan Revenue (Total Received in Current Month)
     // Optional: How much cash flow from loans this month?
     // Based on 'data_pagamento'.
-    const loanRevenue = (emprestimos || [])
+    const loanRevenue = ((emprestimos || [])
         .filter(e => validEmprestimoIds.has(e.id))
         .filter(e => e.status === 'pago')
         .filter(e => {
@@ -84,7 +84,15 @@ export function useFinancialData() {
             // Match Year and Month
             return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
         })
-        .reduce((acc, e) => acc + (e.valor_emprestado + e.juros_total_contratado), 0);
+        .reduce((acc, e) => acc + (e.valor_emprestado + e.juros_total_contratado), 0))
+        +
+        ((emprestimosMeses || [])
+            .filter(m => {
+                if (!m.pago || !m.pago_em) return false;
+                const d = new Date(m.pago_em);
+                return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+            })
+            .reduce((acc, m) => acc + (m.valor_juros || 0), 0));
 
     // --- SPREADSHEET DATA GENERATION (History) ---
 

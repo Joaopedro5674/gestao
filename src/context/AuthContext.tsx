@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { User, Session } from "@supabase/supabase-js";
 import { useRouter, usePathname } from "next/navigation";
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => subscription.unsubscribe();
     }, [pathname, router]);
 
-    const value = {
+    const value = useMemo(() => ({
         user,
         session,
         loading,
@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await supabase.auth.signOut();
             router.replace('/auth');
         }
-    };
+    }), [user, session, loading, router]);
 
     return (
         <AuthContext.Provider value={value}>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Wallet, Building, RefreshCw, AlertTriangle, CheckCircle, Table, Download, LogOut, ShieldCheck } from "lucide-react";
+import { ArrowRight, Wallet, Building, RefreshCw, AlertTriangle, CheckCircle, Table, Download, LogOut, ShieldCheck, Info } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
@@ -16,7 +16,7 @@ import LogViewer from "@/components/LogViewer";
 
 export default function Home() {
   // V1.0.1 - Force Deploy for Env Vars
-  const { imoveis, emprestimos, imoveisPagamentos, refreshData, loading } = useApp();
+  const { imoveis, emprestimos, imoveisPagamentos, emprestimosMeses, refreshData, loading } = useApp();
   const { showToast } = useToast();
   const { signOut } = useAuth(); // Auth Hook
 
@@ -121,115 +121,186 @@ export default function Home() {
     showToast("Download da planilha iniciado", "success");
   };
 
-  // --- ALERTS LOGIC (STRICT - RENTAL & LOANS) ---
+  // --- ALERTS LOGIC (REFINED - STRICT SEPARATION) ---
   const alerts: { id: string; type: 'warning' | 'danger' | 'info'; title: string; subtitle: string; propertyId: string; sortScore: number }[] = [];
   let pendingRentalsCount = 0;
 
-  // 1. Get Today in Brazil (UTC-3)
+  // 1. Time References (Brazil UTC-3)
   const brOffset = -3;
   const nowBr = new Date(new Date().getTime() + (brOffset * 60 * 60 * 1000) + (new Date().getTimezoneOffset() * 60 * 1000));
   const todayDay = nowBr.getDate();
   const currentMonthNum = nowBr.getMonth();
   const currentYearNum = nowBr.getFullYear();
 
-  // Unified Month Ref for current check
-  const currentMesRefBr = `${currentYearNum}-${String(currentMonthNum + 1).padStart(2, '0')}-01`;
+  // Format YYYY-MM for matching mes_referencia (Supabase Type)
+  const currentYm = `${currentYearNum}-${String(currentMonthNum + 1).padStart(2, '0')}`;
 
-  // Rental Alerts
+  // 2. RENTAL ALERTS
   imoveis.filter(p => p.ativo).forEach(imovel => {
-    const isPaidCurrentMonth = imoveisPagamentos.some(p => {
-      return p.imovel_id === imovel.id && p.status === 'pago' && p.mes_ref === currentMesRefBr;
-    });
-
     const dueDay = imovel.dia_pagamento || 10;
 
-    if (!isPaidCurrentMonth) {
+    // A) PAST OVERDUE (Explicit records)
+    const pastOverdue = imoveisPagamentos.filter(p => {
+      return p.imovel_id === imovel.id &&
+        p.status !== 'pago' &&
+        p.mes_referencia < currentYm; // Correct property and comparison
+    });
+
+    pastOverdue.forEach(debt => {
+      const [y, m] = debt.mes_referencia.split('-').map(Number);
+      const debtDueDate = new Date(y, m - 1, dueDay);
+
+      alerts.push({
+        id: `overdue-${debt.id}`,
+        type: 'danger',
+        title: 'ATRASADO',
+        subtitle: `${imovel.cliente_nome || imovel.nome} - Venceu em ${debtDueDate.toLocaleDateString('pt-BR')}`,
+        propertyId: imovel.id,
+        sortScore: 100
+      });
+    });
+
+    // B) CURRENT MONTH (Status Check)
+    const isPaidCurrent = imoveisPagamentos.some(p => p.imovel_id === imovel.id && p.mes_referencia === currentYm && p.status === 'pago');
+
+    if (!isPaidCurrent) {
       pendingRentalsCount++;
-      // Check current month due date
-      const dueDate = new Date(currentYearNum, currentMonthNum, dueDay, 12, 0, 0);
-      const formattedDueDate = dueDate.toLocaleDateString('pt-BR');
-      const diffDays = dueDay - todayDay;
+      const currentDueDate = new Date(currentYearNum, currentMonthNum, dueDay, 12, 0, 0);
+      const diffTime = currentDueDate.getTime() - nowBr.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
       if (diffDays < 0) {
+        // Overdue (Current Month)
         alerts.push({
-          id: `prop-${imovel.id}`,
+          id: `prop-cur-overdue-${imovel.id}`,
           type: 'danger',
-          title: 'Aluguel Vencido',
-          subtitle: `${imovel.nome} - Venceu em ${formattedDueDate}`,
+          title: 'ATRASADO',
+          subtitle: `${imovel.cliente_nome || imovel.nome} - Venceu em ${currentDueDate.toLocaleDateString('pt-BR')}`,
           propertyId: imovel.id,
-          sortScore: 100
+          sortScore: 99
         });
       } else if (diffDays <= 3) {
-        const daysLabel = diffDays === 0 ? 'vence hoje' : diffDays === 1 ? 'vence em 1 dia' : `vence em ${diffDays} dias`;
+        // Near Due
+        const daysLabel = diffDays === 0 ? 'hoje' : diffDays === 1 ? 'amanhã' : `em ${diffDays} dias`;
         alerts.push({
-          id: `prop-${imovel.id}`,
+          id: `prop-cur-near-${imovel.id}`,
           type: 'warning',
-          title: diffDays === 0 ? 'Vence Hoje' : 'Próximo do Vencimento',
-          subtitle: `${imovel.nome} ${formattedDueDate.slice(0, 5)} (${daysLabel})`,
+          title: 'PRÓXIMO DO VENCIMENTO',
+          subtitle: `${imovel.cliente_nome || imovel.nome} - Vence ${daysLabel} (${currentDueDate.toLocaleDateString('pt-BR')})`,
+          propertyId: imovel.id,
+          sortScore: 80
+        });
+      } else {
+        // Pending (Not near due)
+        alerts.push({
+          id: `prop-cur-pending-${imovel.id}`,
+          type: 'info',
+          title: 'PENDENTE',
+          subtitle: `${imovel.cliente_nome || imovel.nome} - Vence em ${currentDueDate.toLocaleDateString('pt-BR')}`,
           propertyId: imovel.id,
           sortScore: 50
         });
       }
     } else {
-      // LOOKAHEAD: Current month is paid, check next month
-      const nextMonthDate = new Date(currentYearNum, currentMonthNum + 1, 1, 12, 0, 0);
-      const nextMonthNum = nextMonthDate.getMonth();
-      const nextYearNum = nextMonthDate.getFullYear();
+      // Lookahead
+      const nextMonthDate = new Date(currentYearNum, currentMonthNum + 1, 1);
+      const nextDueDate = new Date(nextMonthDate.getFullYear(), nextMonthDate.getMonth(), dueDay);
+      const diffNext = Math.ceil((nextDueDate.getTime() - nowBr.getTime()) / (1000 * 60 * 60 * 24));
 
-      const nextDueDate = new Date(nextYearNum, nextMonthNum, dueDay, 12, 0, 0);
-      const formattedNextDueDate = nextDueDate.toLocaleDateString('pt-BR');
-
-      // Calculate diff between Next Due Date and Today
-      const diffTime = nextDueDate.getTime() - nowBr.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays >= 0 && diffDays <= 3) {
-        const daysLabel = diffDays === 0 ? 'vence hoje' : diffDays === 1 ? 'vence em 1 dia' : `vence em ${diffDays} dias`;
+      if (diffNext >= 0 && diffNext <= 3) {
         alerts.push({
-          id: `prop-${imovel.id}-next`,
+          id: `prop-next-near-${imovel.id}`,
           type: 'warning',
-          title: 'Próximo Vencimento',
-          subtitle: `${imovel.nome} ${formattedNextDueDate.slice(0, 5)} (${daysLabel})`,
+          title: 'PRÓXIMO DO VENCIMENTO',
+          subtitle: `${imovel.cliente_nome || imovel.nome} - Vence em ${nextDueDate.toLocaleDateString('pt-BR')}`,
           propertyId: imovel.id,
-          sortScore: 45 // Slightly lower than current month upcoming
+          sortScore: 80
         });
       }
     }
   });
 
-  // Loan Alerts
-  emprestimos.filter(l => l.status === 'ativo' && l.data_fim).forEach(loan => {
-    if (!loan.data_fim) return;
-    const due = new Date(loan.data_fim + 'T12:00:00');
-    due.setHours(0, 0, 0, 0);
-    const today = new Date(nowBr);
-    today.setHours(0, 0, 0, 0);
+  // 3. LOAN ALERTS
+  emprestimos.filter(l => l.status === 'ativo').forEach(loan => {
+    // Main Loan Expiry
+    if (loan.data_fim) {
+      const due = new Date(loan.data_fim + 'T12:00:00');
+      due.setHours(0, 0, 0, 0);
+      const today = new Date(nowBr); today.setHours(0, 0, 0, 0);
 
-    const diffTime = due.getTime() - today.getTime();
-    const loanDiffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-    if (loanDiffDays < 0) {
-      alerts.push({
-        id: `loan-${loan.id}`,
-        type: 'danger',
-        title: 'Empréstimo Atrasado',
-        subtitle: `${loan.cliente_nome}`,
-        propertyId: `/loans/${loan.id}`,
-        sortScore: 90 // Below rent overdue
+      if (diffDays < 0) {
+        alerts.push({
+          id: `loan-over-${loan.id}`,
+          type: 'danger',
+          title: 'EMPRÉSTIMO ATRASADO',
+          subtitle: `${loan.cliente_nome}`,
+          propertyId: `/loans/${loan.id}`,
+          sortScore: 95
+        });
+      } else if (diffDays <= 3) {
+        alerts.push({
+          id: `loan-warn-${loan.id}`,
+          type: 'warning',
+          title: 'EMPRÉSTIMO VENCENDO',
+          subtitle: `${loan.cliente_nome} - Vence em ${due.toLocaleDateString('pt-BR')}`,
+          propertyId: `/loans/${loan.id}`,
+          sortScore: 85
+        });
+      }
+    }
+
+    // Monthly Interest (Model 2)
+    if (loan.cobranca_mensal && emprestimosMeses) {
+      // A) Overdue Interest (Past Months Unpaid)
+      emprestimosMeses.forEach(mes => {
+        if (mes.emprestimo_id === loan.id && !mes.pago && mes.mes_referencia < currentYm) {
+          const [mYear, mMonth] = mes.mes_referencia.split('-');
+          const dateObj = new Date(parseInt(mYear), parseInt(mMonth) - 1, 1);
+          const monthName = dateObj.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+          const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+
+          alerts.push({
+            id: `loan-month-over-${mes.id}`,
+            type: 'danger',
+            title: 'JUROS ATRASADOS (MENSAL)',
+            subtitle: `${loan.cliente_nome} - ${capitalizedMonth}`,
+            propertyId: `/loans/${loan.id}`,
+            sortScore: 90
+          });
+        }
       });
-    } else if (loanDiffDays <= 3) {
-      alerts.push({
-        id: `loan-${loan.id}`,
-        type: 'warning',
-        title: loanDiffDays === 0 ? 'Vence Hoje' : 'Empréstimo Vencendo',
-        subtitle: `${loan.cliente_nome} - ${due.toLocaleDateString('pt-BR')}`,
-        propertyId: `/loans/${loan.id}`,
-        sortScore: 40
-      });
+
+      // B) Near Due Interest (Current/Next Month)
+      const startDay = new Date(loan.data_inicio + 'T12:00:00').getDate();
+      const monthlyDueDate = new Date(currentYearNum, currentMonthNum, startDay, 12, 0, 0);
+
+      const isMonthPaid = emprestimosMeses.some(m =>
+        m.emprestimo_id === loan.id &&
+        m.mes_referencia === currentYm &&
+        m.pago
+      );
+
+      if (!isMonthPaid) {
+        const diffMonthly = Math.ceil((monthlyDueDate.getTime() - nowBr.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (diffMonthly >= 0 && diffMonthly <= 3) {
+          const daysLabel = diffMonthly === 0 ? 'hoje' : diffMonthly === 1 ? 'amanhã' : `em ${diffMonthly} dias`;
+          alerts.push({
+            id: `loan-month-near-${loan.id}`,
+            type: 'warning',
+            title: 'JUROS PRÓXIMOS DO VENCIMENTO',
+            subtitle: `${loan.cliente_nome} - Vence ${daysLabel} (${monthlyDueDate.toLocaleDateString('pt-BR')})`,
+            propertyId: `/loans/${loan.id}`,
+            sortScore: 88
+          });
+        }
+      }
     }
   });
 
-  // Sort: Danger (higher score) first
+  // Sort: Danger > Warning > Info
   alerts.sort((a, b) => b.sortScore - a.sortScore);
 
   const totalNetProfit = rentalNetProfit + totalLoanInterestContracted;
@@ -373,7 +444,7 @@ export default function Home() {
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       border: '1px solid var(--color-border)',
                       // NEUTRAL/LIGHT BORDER - No heavy red/orange
-                      borderLeft: `4px solid ${alert.type === 'danger' ? 'var(--color-text-secondary)' : 'var(--color-text-tertiary)'}`,
+                      borderLeft: `4px solid ${alert.type === 'danger' ? 'var(--color-danger)' : alert.type === 'warning' ? 'var(--color-warning)' : 'var(--color-primary)'}`,
                       background: 'var(--color-surface-1)',
                       padding: '16px 20px',
                       textDecoration: 'none',
@@ -382,11 +453,11 @@ export default function Home() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         {/* Icon Container - Provides the color signal without overwhelming */}
                         <div style={{
-                          color: alert.type === 'danger' ? 'var(--color-danger)' : 'var(--color-warning)',
-                          background: alert.type === 'danger' ? 'rgba(var(--color-danger-rgb), 0.1)' : 'rgba(var(--color-warning-rgb), 0.1)',
+                          color: alert.type === 'danger' ? 'var(--color-danger)' : alert.type === 'warning' ? 'var(--color-warning)' : 'var(--color-primary)',
+                          background: alert.type === 'danger' ? 'rgba(var(--color-danger-rgb), 0.1)' : alert.type === 'warning' ? 'rgba(var(--color-warning-rgb), 0.1)' : 'rgba(var(--color-primary-rgb), 0.1)',
                           padding: '10px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyItems: 'center'
                         }}>
-                          <AlertTriangle size={20} />
+                          {alert.type === 'info' ? <Info size={20} /> : <AlertTriangle size={20} />}
                         </div>
                         <div>
                           <div style={{ fontWeight: '600', color: 'var(--color-text-primary)', fontSize: '0.95rem' }}>{alert.title}</div>

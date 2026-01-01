@@ -51,37 +51,80 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
     const [gastoDesc, setGastoDesc] = useState("");
     const [gastoValor, setGastoValor] = useState("");
     const [isSavingGasto, setIsSavingGasto] = useState(false);
-    const [showPaymentModal, setShowPaymentModal] = useState(false);
 
+    // STRICT TIME SOURCE
     // STRICT TIME SOURCE
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
 
-    const currentMesRef = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+    const currentMesRef = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
     const currentMonthName = now.toLocaleString('pt-BR', { month: 'long' });
 
-    const isPaidThisMonth = imoveisPagamentos.some(p => {
-        return p.imovel_id === imovel.id && p.status === 'pago' && p.mes_ref === currentMesRef;
-    });
+    // 1. Get all payments for this property
+    const myPayments = imoveisPagamentos.filter(p => p.imovel_id === imovel.id);
 
+    // 2. Timeline Data
     const months = Array.from({ length: 12 }, (_, i) => i);
     const timelineData = months.map(mIndex => {
         const d = new Date(currentYear, mIndex, 1);
         const label = d.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
-        const targetMesRef = `${currentYear}-${String(mIndex + 1).padStart(2, '0')}-01`;
+        const targetMesRef = `${currentYear}-${String(mIndex + 1).padStart(2, '0')}`;
 
-        const isMonthPaid = imoveisPagamentos.some(p => {
-            return p.imovel_id === imovel.id && p.status === 'pago' && p.mes_ref === targetMesRef;
-        });
+        const payment = imoveisPagamentos.find(p => p.imovel_id === imovel.id && p.mes_referencia === targetMesRef);
+        const isPaid = payment?.status === 'pago';
 
-        return { label, isPaid: isMonthPaid, isCurrent: mIndex === currentMonth };
+        return { label, isPaid, isCurrent: mIndex === currentMonth };
     });
 
-    const handlePayment = async () => {
-        if (isPaidThisMonth) return;
-        await receberPagamento(imovel.id, new Date());
-    };
+    // OVERDUE LOGIC (Strict Text Comparison)
+    const overduePayments = myPayments.filter(p =>
+        (p.status === 'atrasado') ||
+        (p.status === 'pendente' && p.mes_referencia < currentMesRef)
+    );
+    const overdueCount = overduePayments.length;
+
+    // Current Month Status
+    const currentMonthPayment = myPayments.find(p => p.mes_referencia === currentMesRef);
+    const isCurrentPaid = currentMonthPayment?.status === 'pago';
+
+    // LOGIC:
+    // 1. If overdue > 0 -> RED "Atrasados"
+    // 2. If no overdue, but current is not paid -> YELLOW "Pendente"
+    // 3. If no overdue AND current paid -> GREEN "Em dia"
+
+    let statusBadge;
+    if (overdueCount > 0) {
+        statusBadge = (
+            <div style={{
+                fontSize: '0.75rem', fontWeight: '800', padding: '4px 10px', borderRadius: '12px',
+                background: 'var(--color-danger)', color: 'white', display: 'flex', alignItems: 'center', gap: '4px'
+            }}>
+                <AlertCircle size={12} fill="white" color="var(--color-danger)" />
+                {overdueCount} {overdueCount === 1 ? 'Atrasado' : 'Atrasados'}
+            </div>
+        );
+    } else if (!isCurrentPaid) {
+        statusBadge = (
+            <div style={{
+                fontSize: '0.75rem', fontWeight: '800', padding: '4px 10px', borderRadius: '12px',
+                background: 'var(--color-warning)', color: 'white', display: 'flex', alignItems: 'center', gap: '4px'
+            }}>
+                <AlertCircle size={12} fill="white" color="var(--color-warning)" />
+                Pendente
+            </div>
+        );
+    } else {
+        statusBadge = (
+            <div style={{
+                fontSize: '0.75rem', fontWeight: '800', padding: '4px 10px', borderRadius: '12px',
+                background: 'var(--color-success)', color: 'white', display: 'flex', alignItems: 'center', gap: '4px'
+            }}>
+                <CheckCircle size={12} />
+                Em dia
+            </div>
+        );
+    }
 
     const handleSaveGasto = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -112,9 +155,9 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
     };
 
     return (
-        <div className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+        <div className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)', borderLeft: overdueCount > 0 ? '4px solid var(--color-danger)' : undefined }}>
             <div style={{
-                background: isPaidThisMonth ? 'rgba(var(--color-success-rgb), 0.05)' : 'var(--color-surface-2)',
+                background: 'var(--color-surface-2)',
                 padding: '12px 16px',
                 borderBottom: '1px solid var(--color-border)',
                 display: 'flex',
@@ -137,13 +180,8 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
                         </div>
                     ))}
                 </div>
-                <div style={{
-                    fontSize: '0.65rem', fontWeight: '800', padding: '3px 8px', borderRadius: '10px',
-                    background: isPaidThisMonth ? 'var(--color-success)' : 'var(--color-text-tertiary)',
-                    color: 'white', textTransform: 'uppercase'
-                }}>
-                    {isPaidThisMonth ? 'Pago' : 'Pendente'}
-                </div>
+
+                {statusBadge}
             </div>
 
             <div style={{ padding: '16px' }}>
@@ -153,56 +191,28 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(imovel.valor_aluguel)}
                         </div>
                         <h3 style={{ fontSize: '0.95rem', fontWeight: '600' }}>{imovel.nome}</h3>
+                        {imovel.cliente_nome && (
+                            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-primary)' }}></span>
+                                {imovel.cliente_nome}
+                            </div>
+                        )}
                     </div>
-                    <button
-                        onClick={() => setShowDeleteModal(true)}
-                        className="btn"
-                        style={{
-                            background: 'var(--color-error)',
-                            color: 'white',
-                            border: '1px solid rgba(0,0,0,0.1)',
-                            padding: '6px',
-                            boxShadow: 'var(--shadow-sm)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                        }}
-                        title="Ação Irreversível: Apagar imóvel e todos os registros relacionados"
-                    >
-                        <AlertCircle size={14} />
-                        <Trash2 size={16} />
-                    </button>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '8px', marginBottom: '8px' }}>
-                    {!isPaidThisMonth ? (
-                        <button onClick={() => setShowPaymentModal(true)} className="btn" style={{ background: 'var(--color-success)', color: 'white', fontSize: '0.85rem' }}>
-                            <CheckCircle size={16} /> Receber {currentMonthName.slice(0, 3)}
-                        </button>
-                    ) : (
-                        <button
-                            disabled
-                            className="btn"
-                            style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-tertiary)', fontSize: '0.8rem', cursor: 'not-allowed', border: '1px solid var(--color-border)', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
-                            title="Pagamento já recebido este mês"
-                        >
-                            <Lock size={14} /> Pago
-                        </button>
-                    )}
-                    <button onClick={() => setShowGastoModal(true)} className="btn" style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-primary)', border: '1px solid var(--color-border)', fontSize: '0.8rem' }}>
-                        <Plus size={16} /> Gasto
-                    </button>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <Link href={`/properties/${imovel.id}`} className="btn" style={{ background: 'var(--color-surface-2)', fontSize: '0.8rem', border: '1px solid var(--color-border)', flex: 1 }}>
-                        <Search size={16} /> Histórico
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                    <Link href={`/properties/${imovel.id}/details`} className="btn" style={{ background: 'var(--color-surface-2)', fontSize: '0.8rem', border: '1px solid var(--color-border)', justifyContent: 'center' }}>
+                        Ver Dados
                     </Link>
-                    <Link href={`/properties/${imovel.id}`} className="btn" style={{ background: 'var(--color-surface-2)', fontSize: '0.8rem', border: '1px solid var(--color-border)', flex: 1 }}>
-                        <BarChart3 size={16} /> Relatório
+                    <Link href={`/properties/${imovel.id}/edit`} className="btn" style={{ background: 'var(--color-surface-2)', fontSize: '0.8rem', border: '1px solid var(--color-border)', justifyContent: 'center' }}>
+                        Editar
+                    </Link>
+                    <Link href={`/properties/${imovel.id}`} className="btn" style={{ background: 'var(--color-primary)', color: 'white', fontSize: '0.8rem', border: 'none', justifyContent: 'center' }}>
+                        Pagamentos
                     </Link>
                 </div>
             </div>
+
 
             {/* QUICK GASTO MODAL */}
             {showGastoModal && (
@@ -236,18 +246,6 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
                 onConfirm={handleDeleteImovel}
                 itemName={imovel.nome}
                 itemType="Imóvel"
-            />
-
-            {/* PAYMENT CONFIRMATION MODAL */}
-            {/* PAYMENT CONFIRMATION MODAL */}
-            <ConfirmationModal
-                isOpen={showPaymentModal}
-                onClose={() => setShowPaymentModal(false)}
-                onConfirm={handlePayment}
-                title="Confirmar Pagamento"
-                message={`Deseja registrar o pagamento do mês (${currentMonthName}/${currentYear}) para o imóvel ${imovel.nome}?`}
-                confirmText="Confirmar Recebimento"
-                variant="success"
             />
         </div>
     );
