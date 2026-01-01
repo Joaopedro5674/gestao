@@ -191,12 +191,29 @@ export default function LoanDetailsPage({ params }: { params: Promise<{ id: stri
                                 const monthName = dateObj.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
                                 const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
+                                // --- DUE DATE CALCULATION (STRICT 30 DAYS) ---
+                                const [refYear, refMonth] = mes.mes_referencia.split('-').map(Number);
+                                const start = new Date(emprestimo.data_inicio + 'T12:00:00');
+                                const startYear = start.getFullYear();
+                                const startMonth = start.getMonth() + 1;
+
+                                const monthDiff = ((refYear - startYear) * 12) + (refMonth - startMonth);
+                                const multiplier = Math.max(0, monthDiff + 1);
+
+                                const calculatedDueDate = new Date(start);
+                                calculatedDueDate.setDate(calculatedDueDate.getDate() + (30 * multiplier));
+                                const calculatedDueDateStr = calculatedDueDate.toLocaleDateString('pt-BR');
+                                // ---------------------------------------------
+
                                 return (
                                     <div key={mes.id} className="card" style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: isPast ? '4px solid var(--color-danger)' : (isCurrent ? '4px solid var(--color-success)' : '4px solid var(--color-border)') }}>
                                         <div>
                                             <div style={{ fontWeight: 600, fontSize: '1rem' }}>{capitalizedMonth}</div>
                                             <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
                                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(mes.valor_juros)}
+                                            </div>
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)', marginTop: '2px', opacity: 0.8 }}>
+                                                Vencimento: {calculatedDueDateStr}
                                             </div>
 
                                             <div style={{ marginTop: '6px' }}>

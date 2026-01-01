@@ -253,50 +253,93 @@ export default function Home() {
 
     // Monthly Interest (Model 2)
     if (loan.cobranca_mensal && emprestimosMeses) {
-      // A) Overdue Interest (Past Months Unpaid)
-      emprestimosMeses.forEach(mes => {
-        if (mes.emprestimo_id === loan.id && !mes.pago && mes.mes_referencia < currentYm) {
-          const [mYear, mMonth] = mes.mes_referencia.split('-');
-          const dateObj = new Date(parseInt(mYear), parseInt(mMonth) - 1, 1);
-          const monthName = dateObj.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
-          const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+      const startDate = new Date(loan.data_inicio + 'T12:00:00');
 
+      // Filter unpaid months for this loan and sort by reference to be safe
+      const loanMonths = emprestimosMeses
+        .filter(m => m.emprestimo_id === loan.id && !m.pago)
+        .sort((a, b) => a.mes_referencia.localeCompare(b.mes_referencia));
+
+      loanMonths.forEach(mes => {
+        // 1. Determine Index (1-based)
+        // Logic: Calculate difference in months from StartDate to mes.mes_referencia
+        const [refYear, refMonth] = mes.mes_referencia.split('-').map(Number);
+        const startYear = startDate.getFullYear();
+        const startMonth = startDate.getMonth() + 1; // 0-11 to 1-12
+
+        // Example: Start 2026-01. Ref 2026-02. Index = 1.
+        // Example: Start 2026-01. Ref 2026-01. Index = 0.
+        // Rule: "Parcela 1 -> vence em 04/02". (Start + 30 days).
+        // If RefYear/Month matches Start, it's typically "Month 0" or pro-rata, but assuming 
+        // the standard flow generates the *following* months as installments.
+        // However, if we simply calculate strict offset:
+        const monthDiff = ((refYear - startYear) * 12) + (refMonth - startMonth);
+
+        // If monthDiff is 0 (same month), usually it's not the first "30 day" installment unless it's immediate.
+        // But usually first installment is monthDiff=1.
+        // Let's assume the "Index" aligns with monthDiff. 
+        // If generated list includes Start Month, treat it as Index 0? 
+        // Prompt says: "Parcela 1 -> Vence...". Implicitly Parcela 1 is the first *payable* item.
+        // If `monthDiff <= 0`, we treat it as Index 0 (Base) or 1?
+        // Let's use `monthDiff` as the multiplier usually.
+        // But if `monthDiff` is 0, +0 days = Start Date. 
+        // If `monthDiff` is 1, +30 days.
+        // Ref: "Jan 5 Start. Feb 4 Due." -> Feb is MonthDiff 1. (Start+30).
+        // Ref: "Jan 5 Start. Mar 6 Due." -> Mar is MonthDiff 2. (Start+60).
+        // Correct.
+
+        // Exception: If the system generated a record for the *same* month (Jan), 
+        // monthDiff=0. Due=Start. Overdue immediately? 
+        // If user wants strict 30 days for everything, we use monthDiff.
+        // If monthDiff < 1, maybe force at least 1? Or adhere to logic?
+        // Adhere to logic: Index = monthDiff. (If monthDiff < 0 loops shouldn't happen).
+        const multiplier = Math.max(0, monthDiff + 1);
+
+        // 2. Calculate Strict Due Date
+        const dueDate = new Date(startDate);
+        dueDate.setDate(dueDate.getDate() + (30 * multiplier));
+
+        // Just for display logic
+        const dateObj = new Date(refYear, refMonth - 1, 1);
+        const monthName = dateObj.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+        const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+
+        // 3. Compare with Today (nowBr)
+        // Reset hours for fair date comparison
+        const dueCheck = new Date(dueDate); dueCheck.setHours(0, 0, 0, 0);
+        const todayCheck = new Date(nowBr); todayCheck.setHours(0, 0, 0, 0);
+
+        const diffTime = dueCheck.getTime() - todayCheck.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        // 4. Alert Logic
+        // "Atenção Necessária apenas quando: data_atual >= data_vencimento_parcela - 3 dias"
+        // i.e. diffDays <= 3.
+
+        if (diffDays < 0) {
+          // Overdue
           alerts.push({
             id: `loan-month-over-${mes.id}`,
             type: 'danger',
-            title: 'JUROS ATRASADOS (MENSAL)',
-            subtitle: `${loan.cliente_nome} - ${capitalizedMonth}`,
+            title: 'JUROS ATRASADOS',
+            subtitle: `${loan.cliente_nome} - ${capitalizedMonth} - Venceu ${dueCheck.toLocaleDateString('pt-BR')}`,
             propertyId: `/loans/${loan.id}`,
             sortScore: 90
           });
-        }
-      });
-
-      // B) Near Due Interest (Current/Next Month)
-      const startDay = new Date(loan.data_inicio + 'T12:00:00').getDate();
-      const monthlyDueDate = new Date(currentYearNum, currentMonthNum, startDay, 12, 0, 0);
-
-      const isMonthPaid = emprestimosMeses.some(m =>
-        m.emprestimo_id === loan.id &&
-        m.mes_referencia === currentYm &&
-        m.pago
-      );
-
-      if (!isMonthPaid) {
-        const diffMonthly = Math.ceil((monthlyDueDate.getTime() - nowBr.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (diffMonthly >= 0 && diffMonthly <= 3) {
-          const daysLabel = diffMonthly === 0 ? 'hoje' : diffMonthly === 1 ? 'amanhã' : `em ${diffMonthly} dias`;
+        } else if (diffDays <= 3) {
+          // Warning (Near Due)
+          const daysLabel = diffDays === 0 ? 'hoje' : diffDays === 1 ? 'amanhã' : `em ${diffDays} dias`;
           alerts.push({
-            id: `loan-month-near-${loan.id}`,
+            id: `loan-month-near-${mes.id}`,
             type: 'warning',
-            title: 'JUROS PRÓXIMOS DO VENCIMENTO',
-            subtitle: `${loan.cliente_nome} - Vence ${daysLabel} (${monthlyDueDate.toLocaleDateString('pt-BR')})`,
+            title: 'JUROS PRÓXIMOS',
+            subtitle: `${loan.cliente_nome} - ${capitalizedMonth} - Vence ${daysLabel} (${dueCheck.toLocaleDateString('pt-BR')})`,
             propertyId: `/loans/${loan.id}`,
             sortScore: 88
           });
         }
-      }
+        // Else: > 3 days. Do not show alert. (Matches "Parcela dentro do prazo -> sem alerta")
+      });
     }
   });
 
@@ -312,46 +355,138 @@ export default function Home() {
       ) : (
         <>
           {/* HEADER: Context & Verification */}
-          <header style={{
-            marginBottom: 'var(--space-lg)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}>
-            <div>
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(var(--color-primary-rgb), 0.1)', padding: '4px 8px', borderRadius: '4px', width: 'fit-content', marginBottom: '8px' }}>
+          {/* HEADER: STRICT VISUAL REORGANIZATION */}
+          <header style={{ marginBottom: 'var(--space-xl)' }}>
+
+            {/* BLOCK 1: IDENTITY */}
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{
+                fontSize: '0.75rem',
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                fontWeight: 'bold',
+                color: 'var(--color-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(var(--color-primary-rgb), 0.1)',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                marginBottom: '8px'
+              }}>
                 <CheckCircle size={10} /> App Financeiro Pessoal
               </div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Dashboard</div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>{monthName} • {timeStr}</div>
-              <div style={{ marginTop: '8px' }}>
-                <SystemStatus />
-              </div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', lineHeight: '1.2' }}>Dashboard</div>
             </div>
 
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end', marginBottom: '8px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: '600', color: isRefreshing ? 'var(--color-warning)' : 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  {isRefreshing ? <RefreshCw size={10} className="spin-anim" /> : <CheckCircle size={10} />}
-                  {isRefreshing ? 'Atualizando...' : 'Dados Atualizados'}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <button onClick={handleCheckHealth} style={{ fontSize: '0.8rem', color: 'var(--color-text-primary)', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <ShieldCheck size={12} color="var(--color-primary)" /> Verificar Sistema
-                  </button>
-                  <button onClick={() => setIsLogViewerOpen(true)} style={{ fontSize: '0.8rem', color: 'var(--color-text-primary)', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Table size={12} /> Logs
-                  </button>
-                  <button onClick={handleRefresh} style={{ fontSize: '0.8rem', color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
-                    Forçar Atualização
-                  </button>
-                </div>
-                <button onClick={signOut} style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', borderLeft: '1px solid var(--color-border)', paddingLeft: '12px' }}>
-                  <LogOut size={14} /> Sair
-                </button>
-              </div>
+            {/* BLOCK 2: DATE & STATUS (Responsive Row) */}
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '12px',
+              alignItems: 'center',
+              color: 'var(--color-text-secondary)',
+              fontSize: '0.85rem',
+              marginBottom: '16px'
+            }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {monthName} • {timeStr}
+              </span>
+              <span style={{ opacity: 0.3 }}>|</span>
+              <SystemStatus />
+            </div>
+
+            {/* BLOCK 3: SYSTEM STATE BADGE */}
+            <div style={{ marginBottom: '20px' }}>
+              <span style={{
+                fontSize: '0.75rem',
+                fontWeight: '600',
+                color: isRefreshing ? 'var(--color-warning)' : 'var(--color-success)',
+                background: isRefreshing ? 'rgba(var(--color-warning-rgb), 0.1)' : 'rgba(var(--color-success-rgb), 0.1)',
+                padding: '6px 12px',
+                borderRadius: '20px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                {isRefreshing ? <RefreshCw size={12} className="spin-anim" /> : <CheckCircle size={12} />}
+                {isRefreshing ? 'Atualizando...' : 'Dados Atualizados'}
+              </span>
+            </div>
+
+            {/* BLOCK 4: ACTIONS (Responsive Grid: 2x2 Mobile, Row Desktop) */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+              gap: '10px'
+            }}>
+              <button onClick={handleCheckHealth} style={{
+                fontSize: '0.85rem',
+                color: 'var(--color-text-primary)',
+                background: 'var(--color-surface-2)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '6px',
+                padding: '10px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                fontWeight: '500'
+              }}>
+                <ShieldCheck size={16} color="var(--color-primary)" /> Verificar Sistema
+              </button>
+
+              <button onClick={() => setIsLogViewerOpen(true)} style={{
+                fontSize: '0.85rem',
+                color: 'var(--color-text-primary)',
+                background: 'var(--color-surface-2)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '6px',
+                padding: '10px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                fontWeight: '500'
+              }}>
+                <Table size={16} /> Logs
+              </button>
+
+              <button onClick={handleRefresh} style={{
+                fontSize: '0.85rem',
+                color: 'var(--color-primary)',
+                background: 'var(--color-surface-2)',
+                border: '1px solid var(--color-primary)',
+                borderRadius: '6px',
+                padding: '10px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                fontWeight: '500'
+              }}>
+                <RefreshCw size={16} /> Forçar Atualização
+              </button>
+
+              <button onClick={signOut} style={{
+                fontSize: '0.85rem',
+                color: 'var(--color-danger)',
+                background: 'var(--color-surface-2)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '6px',
+                padding: '10px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                fontWeight: '500'
+              }}>
+                <LogOut size={16} /> Sair
+              </button>
             </div>
           </header>
 
