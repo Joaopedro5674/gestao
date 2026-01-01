@@ -49,9 +49,10 @@ export function useFinancialData() {
         .filter(p => {
             if (!validImovelIds.has(p.imovel_id)) return false;
             if (p.status !== 'pago') return false;
-            return p.mes_ref === currentMesRef;
+            // Handle YYYY-MM or YYYY-MM-DD formats safely
+            return p.mes_referencia && p.mes_referencia.slice(0, 7) === currentMesRef.slice(0, 7);
         })
-        .reduce((acc, p) => acc + (p.valor_pago || 0), 0);
+        .reduce((acc, p) => acc + (p.valor || 0), 0);
 
     // 2. Rental Expenses (Current Month Strict)
     // Sum 'valor' from imoveis_gastos where mes_ref matches current month
@@ -103,7 +104,7 @@ export function useFinancialData() {
 
     // Add check: ensure valid strings
     imoveisPagamentos.forEach(p => {
-        if (p.mes_ref && p.mes_ref.length >= 7) monthKeys.add(p.mes_ref.slice(0, 7)); // YYYY-MM
+        if (p.mes_referencia && p.mes_referencia.length >= 7) monthKeys.add(p.mes_referencia.slice(0, 7)); // YYYY-MM
     });
     imoveisGastos.forEach(g => {
         if (g.mes_ref && g.mes_ref.length >= 7) monthKeys.add(g.mes_ref.slice(0, 7));
@@ -123,7 +124,7 @@ export function useFinancialData() {
             // Find payment
             const payment = imoveisPagamentos.find(p =>
                 p.imovel_id === imovel.id &&
-                p.mes_ref === mesRefStrict
+                (p.mes_referencia === mesRefStrict || p.mes_referencia?.slice(0, 7) === ym)
             );
 
             // Find expenses
@@ -134,7 +135,7 @@ export function useFinancialData() {
 
             const totalExpense = monthExpenses.reduce((sum, e) => sum + e.valor, 0);
             const isPaid = payment?.status === 'pago';
-            const valPago = isPaid ? (payment.valor_pago || 0) : 0;
+            const valPago = isPaid ? (payment.valor || 0) : 0;
 
             rentalSpreadsheetData.push({
                 property: imovel.nome,
@@ -143,7 +144,7 @@ export function useFinancialData() {
                 month: ym, // YYYY-MM
                 rentValue: imovel.valor_aluguel,
                 status: isPaid ? 'Pago' : 'Pendente',
-                paymentDate: payment?.data_pagamento ? new Date(payment.data_pagamento).toLocaleDateString('pt-BR') : '-',
+                paymentDate: payment?.pago_em ? new Date(payment.pago_em).toLocaleDateString('pt-BR') : '-',
                 revenue: valPago,
                 expenses: totalExpense,
                 netProfit: valPago - totalExpense
