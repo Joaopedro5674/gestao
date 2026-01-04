@@ -114,12 +114,13 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
                 justifyContent: 'space-between',
                 alignItems: 'center',
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', rowGap: '6px' }}>
                     <div style={{
                         fontSize: '0.75rem',
                         fontWeight: '600',
                         color: isPaid ? 'var(--color-success)' : stats.isOverdue ? 'var(--color-danger)' : 'var(--color-primary)',
-                        display: 'flex', alignItems: 'center', gap: '4px', textTransform: 'uppercase'
+                        display: 'flex', alignItems: 'center', gap: '4px', textTransform: 'uppercase',
+                        whiteSpace: 'nowrap', maxWidth: '100%'
                     }}>
                         {isPaid ? <CheckCircle size={14} /> : stats.isOverdue ? <AlertTriangle size={14} /> : <CheckCircle size={14} />}
                         {isPaid ? 'Pago' : stats.isOverdue ? 'Vencido' : 'Em Andamento'}
@@ -127,7 +128,8 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
 
                     {!isPaid && (
                         <div style={{
-                            fontSize: '0.6rem', background: 'var(--color-primary)', color: 'white', padding: '2px 6px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '2px'
+                            fontSize: '0.6rem', background: 'var(--color-primary)', color: 'white', padding: '2px 6px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '2px',
+                            whiteSpace: 'nowrap', maxWidth: '100%'
                         }} title="O valor dos juros é fixo conforme o contrato">
                             <CheckCircle size={8} /> Juros Garantidos
                         </div>
@@ -135,7 +137,8 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
 
                     {emprestimo.cobranca_mensal && (
                         <div style={{
-                            fontSize: '0.6rem', background: 'var(--color-primary)', color: 'white', padding: '2px 6px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '2px'
+                            fontSize: '0.6rem', background: 'var(--color-primary)', color: 'white', padding: '2px 6px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '2px',
+                            whiteSpace: 'nowrap', maxWidth: '100%'
                         }} title="Cobrança mensal de juros ativa">
                             <CheckCircle size={8} /> Juros Mensais
                         </div>

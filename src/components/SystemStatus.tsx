@@ -7,18 +7,28 @@ import { supabase } from "@/lib/supabaseClient";
 export default function SystemStatus() {
     const { syncStatus, lastSync } = useApp();
     const [lastCron, setLastCron] = useState<string | null>(null);
+    const [cronHealthy, setCronHealthy] = useState<boolean>(true);
 
     useEffect(() => {
-        // Fetch Anti-Hibernation Status
+        // Fetch Anti-Hibernation Status from Cron Logs
         const fetchCronStatus = async () => {
             const { data } = await supabase
-                .from('system_health')
-                .select('value, updated_at')
-                .eq('key', 'anti_hibernation_last_run')
-                .single();
+                .from('cron_logs')
+                .select('executed_at')
+                .order('executed_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
 
-            if (data?.value) {
-                setLastCron(data.value);
+            if (data?.executed_at) {
+                setLastCron(data.executed_at);
+
+                // Check health (26 hours threshold)
+                const lastRun = new Date(data.executed_at);
+                const now = new Date();
+                const diffHours = (now.getTime() - lastRun.getTime()) / (1000 * 60 * 60);
+                setCronHealthy(diffHours <= 26);
+            } else {
+                setCronHealthy(false);
             }
         };
         fetchCronStatus();
@@ -28,9 +38,15 @@ export default function SystemStatus() {
         return () => clearInterval(interval);
     }, []);
 
-    const formatTime = (isoString: string) => {
+    const formatDateTime = (isoString: string) => {
         const date = new Date(isoString);
-        return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        return date.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     };
 
     if (syncStatus === 'error') {
@@ -57,10 +73,19 @@ export default function SystemStatus() {
                 <CheckCircle size={14} />
                 <span>Supabase Online</span>
             </div>
-            {lastCron && (
-                <div title={`Anti-Hibernação executado em: ${new Date(lastCron).toLocaleString()}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-text-tertiary)', fontSize: '0.7rem' }}>
+            {lastCron ? (
+                <div
+                    title={cronHealthy ? "Cron Ativo" : "Risco de Hibernação - Cron Atrasado"}
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px', color: cronHealthy ? 'var(--color-text-tertiary)' : 'var(--color-error)', fontSize: '0.7rem' }}
+                >
                     <Activity size={10} />
-                    <span>Cron: {formatTime(lastCron)}</span>
+                    <span>Cron: {formatDateTime(lastCron)}</span>
+                    {!cronHealthy && <AlertCircle size={10} style={{ marginLeft: '2px' }} />}
+                </div>
+            ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-text-tertiary)', fontSize: '0.7rem' }}>
+                    <Activity size={10} />
+                    <span>Cron: Aguardando...</span>
                 </div>
             )}
         </div>
