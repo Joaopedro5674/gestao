@@ -11,25 +11,30 @@ export default function SystemHealthCheck() {
         // Run once on mount (App Load)
         const checkHealth = async () => {
             try {
-                // 1. Consultar last_ping_at
+                // 1. Consultar executed_at (Unified Cron Logs)
                 const { data, error } = await supabase
-                    .from('system_health')
-                    .select('last_ping_at')
-                    .eq('id', SYSTEM_ID)
-                    .single();
+                    .from('cron_logs')
+                    .select('executed_at')
+                    .eq('type', 'anti_hibernation') // Optional: specific type check
+                    .order('executed_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
 
                 if (error || !data) return; // Silent fail
 
                 // 2. Calcular diferença
-                const lastPing = new Date(data.last_ping_at).getTime();
+                const lastPing = new Date(data.executed_at).getTime();
                 const now = new Date().getTime();
                 const diff = now - lastPing;
 
-                // 3. Se > 24h, chamar Keep-Alive
-                if (diff > CHECK_INTERVAL_MS) {
+                // 3. Se > 26h (Threshold seguro), chamar Keep-Alive
+                // Using 26h to align with dashboard alert logic, avoiding false triggers
+                const SAFE_THRESHOLD = 26 * 60 * 60 * 1000;
+
+                if (diff > SAFE_THRESHOLD) {
                     // Fire and forget, silent
-                    fetch('/api/keep-alive', { method: 'GET', keepalive: true }).catch(() => { });
-                    console.log("System Health: Fallback ping triggered.");
+                    fetch('/api/cron/keep-alive', { method: 'GET', keepalive: true }).catch(() => { });
+                    console.log("System Health: Fallback ping triggered (Cron overdue).");
                 }
             } catch {
                 // Silent ignore

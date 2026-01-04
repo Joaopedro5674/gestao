@@ -21,38 +21,22 @@ export async function GET() {
 
         // 3. QUERY PERMITIDA (APENAS LEITURA / UPDATE LAST PING)
 
-        // Fallback: Update system_health table
-        // Using UPSERT on known ID to minimal footprint
-        const SYSTEM_ID = '00000000-0000-0000-0000-000000000001';
-
+        // 2. QUERY PERMITIDA (APENAS LEITURA)
         // First, try plain read (Lightweight)
-        await supabase.from('properties').select('id').limit(1);
+        await supabase.from('imoveis').select('id').limit(1);
 
-        // Then, touch the system_health table
-        const { error: healthError } = await supabase
-            .from('system_health')
-            .upsert({
-                id: SYSTEM_ID,
-                last_ping_at: new Date().toISOString()
-            }, { onConflict: 'id' });
+        // 3. LOG TO CRON LOGS (Unified System)
+        const { error: logError } = await supabase
+            .from('cron_logs')
+            .insert({
+                executed_at: new Date().toISOString(),
+                status: 'success',
+                type: 'keep_alive_ping',
+                message: 'Keep-alive fallback execution'
+            });
 
-        if (healthError) {
-            console.error('Keep-Alive Health Update Error:', healthError);
-            // Ignore error, goal is just to touch DB.
-        }
-
-        // 4. UPDATE KV STORE (ANTI-HIBERNATION LOG)
-        // Store explicit timestamp for frontend monitoring
-        const { error: kvError } = await supabase
-            .from('system_health')
-            .upsert({
-                key: 'anti_hibernation_last_run',
-                value: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            }, { onConflict: 'key' });
-
-        if (kvError) {
-            console.error('Keep-Alive KV Update Error:', kvError);
+        if (logError) {
+            console.error('Keep-Alive Log Error:', logError);
         }
 
         return NextResponse.json({ ok: true, timestamp: new Date().toISOString() }, { status: 200 });

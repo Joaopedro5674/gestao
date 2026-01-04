@@ -70,15 +70,17 @@ export default function Home() {
     setIsHealthModalOpen(true);
 
     try {
-      // 1. Test Supabase Connection (Read-only)
+      // 1. Test Supabase Connection (Read-only) & Check Cron Logs
       const { data, error } = await supabase
-        .from('system_health')
-        .select('last_ping_at')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .single();
+        .from('cron_logs')
+        .select('executed_at')
+        .eq('type', 'anti_hibernation') // Focus on anti-hibernation events
+        .order('executed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       const supabaseConnected = !error;
-      const lastHeartbeat = data?.last_ping_at || null;
+      const lastHeartbeat = data?.executed_at || null;
 
       // 2. Determine Health
       // Healthy if connected AND heartbeat is < 26 hours old (buffer over 24h)

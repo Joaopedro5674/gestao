@@ -19,7 +19,9 @@ export async function GET() {
             .from('cron_logs')
             .insert({
                 executed_at: new Date().toISOString(),
-                status: 'success'
+                status: 'success',
+                type: 'anti_hibernation',
+                message: 'Anti-hibernation execution successful'
             });
 
         if (logError) console.error("Cron Log Error:", logError);
@@ -32,16 +34,18 @@ export async function GET() {
 
     } catch (e) {
         // 3. Log Error (Attempt)
-        const { error: errorLogErr } = await supabaseAdmin
+        await supabaseAdmin
             .from('cron_logs')
             .insert({
                 executed_at: new Date().toISOString(),
-                status: 'error'
+                status: 'error',
+                type: 'anti_hibernation',
+                message: (e as Error).message
+            })
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+            .then(({ error: err }: { error: any }) => {
+                if (err) console.error("Failed to log error:", err);
             });
-
-        if (errorLogErr) {
-            console.error("Failed to log error:", errorLogErr);
-        }
 
         return NextResponse.json({ status: 'error', message: (e as Error).message }, { status: 500 });
     }
