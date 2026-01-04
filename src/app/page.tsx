@@ -30,7 +30,8 @@ export default function Home() {
   } = dashboard;
 
   // Local state for time and formatting
-  const [now, setNow] = useState(new Date());
+  // Hydration fix: Start with null/undefined, set in useEffect
+  const [now, setNow] = useState<Date | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLogViewerOpen, setIsLogViewerOpen] = useState(false);
@@ -46,6 +47,7 @@ export default function Home() {
   } | null>(null);
 
   useEffect(() => {
+    setNow(new Date()); // Initial Client Set
     const timer = setInterval(() => {
       setNow(new Date());
     }, 1000 * 60);
@@ -107,6 +109,8 @@ export default function Home() {
   };
 
   // Fixed Month Ref for DB comparison (YYYY-MM-01)
+
+  if (!now) return null; // Avoid hydration mismatch by waiting for client mount
 
   const monthName = now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
   const timeStr = now.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' });

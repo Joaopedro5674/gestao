@@ -8,34 +8,42 @@ import { useToast } from "@/components/ToastProvider";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 import ConfirmationModal from "@/components/ConfirmationModal";
 
+import ExpenseModal from "@/components/ExpenseModal";
+
 export default function PropertyDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
     const { id } = resolvedParams;
 
-    const { imoveis, imoveisPagamentos, imoveisGastos, receberPagamento, deletarImovel, loading } = useApp();
+    // ADDED: adicionarGasto to hook
+    const { imoveis, imoveisPagamentos, imoveisGastos, receberPagamento, deletarImovel, adicionarGasto, loading } = useApp();
     const { showToast } = useToast();
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+    // NEW: Expense Modal State
+    const [showExpenseModal, setShowExpenseModal] = useState(false);
     const [paymentTarget, setPaymentTarget] = useState<{ date: Date; label: string }>({ date: new Date(), label: '' });
+
+    // NEW: Safe ref for expenses (using Month-Year string or start date)
+    // We need strict 'YYYY-MM-01' for 'mes_ref' DB column found in types
+    const [expenseTargetDate, setExpenseTargetDate] = useState<string | null>(null);
 
     const imovel = imoveis.find((p) => p.id === id) || null;
     const history = imoveisPagamentos
         .filter((p) => p.imovel_id === id)
         .sort((a, b) => b.mes_referencia.localeCompare(a.mes_referencia)); // Newest first for history
 
-    // Current Month Status Logic (Strict Text)
+    // ... (Existing Date Logic)
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
     const currentMesRef = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`; // YYYY-MM
 
-    // Filter strictly overdue items for Badge
     const overdueItems = history.filter(p =>
         (p.status === 'atrasado') ||
         (p.status === 'pendente' && p.mes_referencia < currentMesRef)
     );
 
-    // Pending Payments (Sorted Oldest First to encourage paying debt)
     const pendingPayments = history
         .filter(p => p.status !== 'pago')
         .sort((a, b) => a.mes_referencia.localeCompare(b.mes_referencia));
@@ -44,11 +52,26 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
         if (!imovel || !paymentTarget.date) return;
         try {
             await receberPagamento(imovel.id, paymentTarget.date);
-            // showToast handled in context
             setShowPaymentModal(false);
         } catch (error) {
             console.error(error);
-            // Error toast handled in context
+        }
+    };
+
+    // NEW: Handler for Saving Expense
+    const handleSaveExpense = async (descricao: string, valor: number) => {
+        if (!imovel || !expenseTargetDate) return;
+        try {
+            await adicionarGasto({
+                imovel_id: imovel.id,
+                mes_ref: expenseTargetDate, // Strictly 'YYYY-MM-01'
+                descricao,
+                valor
+            });
+            // Toast handled inside hook, but we can double check
+            setShowExpenseModal(false);
+        } catch (error) {
+            console.error("Failed to add expense", error);
         }
     };
 
@@ -63,7 +86,6 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
 
     return (
         <div className="container">
-            {/* START HEADER */}
             <header style={{ marginBottom: '20px' }}>
                 <Link href="/properties" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-secondary)', marginBottom: '10px' }}>
                     <ArrowLeft size={20} /> Voltar para Imóveis
@@ -74,14 +96,7 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                         <h1 style={{ marginBottom: '4px' }}>{imovel.nome}</h1>
                         <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>{imovel.endereco}</p>
                     </div>
-                    {/* Status Badge */}
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        {/* 1. STATUS BADGE (Pendente vs Em dia) */}
-                        {/* If there are overdue items OR current is not paid, it's 'Pendente' (Yellow). 
-                             Only strict 'Em dia' (All past paid AND current paid) gets Green. 
-                             Wait, if I have overdue, am I 'Pendente'? The user said:
-                             "Se existir qualquer mês anterior ao mês atual que não esteja pago -> Exibir selo amarelo: Pendente"
-                        */}
                         {(overdueItems.length > 0 || pendingPayments.some(p => p.mes_referencia === currentMesRef)) ? (
                             <div style={{
                                 background: 'var(--color-warning)', color: 'white', padding: '6px 12px',
@@ -100,7 +115,6 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                             </div>
                         )}
 
-                        {/* 2. OVERDUE WARNING BADGE (Second Seal) */}
                         {overdueItems.length > 0 && (
                             <div style={{
                                 background: 'var(--color-danger)', color: 'white', padding: '6px 12px',
@@ -118,11 +132,8 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                 <Link href={`/properties/${imovel.id}/details`} className="btn" style={{ padding: '8px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
                     Ver Dados do Contrato
                 </Link>
-                {/* Removed Edit/Delete from here nicely, or keep them? User didn't say to remove buttons, just split Functionality. "Ver Dados" button logic changed. */}
-                {/* Let's keep a link to Details. Edit/Delete can be in Details or here? Usually Details. I'll Link to Details. */}
             </div>
 
-            {/* HEADER INFO (Current Month) */}
             <div style={{ marginBottom: 'var(--space-md)', padding: '16px', background: 'var(--color-surface-1)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                     <span className="label">Mês Atual ({new Date().toLocaleString('pt-BR', { month: 'long' })})</span>
@@ -137,7 +148,6 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                 </div>
             </div>
 
-            {/* SEÇÃO DE PAGAMENTOS PENDENTES */}
             <div style={{ marginBottom: 'var(--space-md)' }}>
                 <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Pagamentos Pendentes</h3>
 
@@ -149,15 +159,13 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                 ) : (
                     <div style={{ display: 'grid', gap: '8px' }}>
                         {pendingPayments.map((payment) => {
-                            // Parse YYYY-MM
                             const [pYear, pMonth] = payment.mes_referencia.split('-').map(Number);
-                            // Due Date Calculation
                             const dueDate = new Date(pYear, pMonth - 1, imovel.dia_pagamento);
-                            // Valid Date check (e.g. Feb 30 -> Mar 2) - JS handles overflow, but strictly we might want last day of month? 
-                            // Standard JS behavior is acceptable for now unless user complains.
-
                             const labelMonth = new Date(pYear, pMonth - 1, 15).toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
                             const isLate = payment.status === 'atrasado' || (payment.status === 'pendente' && payment.mes_referencia < currentMesRef);
+
+                            // Construct 'YYYY-MM-01' strictly for expense reference logic
+                            const mesRefForExpense = `${payment.mes_referencia}-01`;
 
                             return (
                                 <div key={payment.id} className="card" style={{
@@ -178,10 +186,28 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                                         <span style={{ fontWeight: '600', fontSize: '1.1rem' }}>
                                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(imovel.valor_aluguel)}
                                         </span>
+                                        {/* RESTORED GASTOS BUTTON (SECONDARY) */}
+                                        <button
+                                            onClick={() => {
+                                                setPaymentTarget({ date: new Date(), label: labelMonth }); // Label reuse
+                                                setExpenseTargetDate(mesRefForExpense);
+                                                setShowExpenseModal(true);
+                                            }}
+                                            className="btn"
+                                            style={{
+                                                padding: '6px 16px',
+                                                background: 'transparent',
+                                                border: '1px solid var(--color-border)',
+                                                color: 'var(--color-text-secondary)'
+                                            }}
+                                        >
+                                            Gastos
+                                        </button>
+
                                         <button
                                             onClick={() => {
                                                 setPaymentTarget({
-                                                    date: new Date(pYear, pMonth - 1, 15), // Use safe date for processing ref
+                                                    date: new Date(pYear, pMonth - 1, 15),
                                                     label: labelMonth
                                                 });
                                                 setShowPaymentModal(true);
@@ -210,21 +236,13 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                         const dueDate = new Date(y, m - 1, imovel.dia_pagamento);
                         const monthLabel = new Date(y, m - 1, 15).toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
 
-                        // Note: Gastos might still be using mes_ref or we need to check its schema.
-                        // Assuming imoveisGastos still uses mes_ref (DATE or TEXT?).
-                        // If imoveisGastos wasn't migrated, equality check might fail if formats differ.
-                        // Let's assume for now strict equality check against payment.mes_referencia
-                        // User prompt only mentioned fixing imoveis_pagamentos. Gastos might be separate.
-                        // If Gastos use 'YYYY-MM-01', we need to match carefully.
-                        // Ideally we should have migrated Gastos too, but let's stick to simple match or substring.
-                        // For safety, let's normalize gastos match:
                         const monthExpenses = imoveisGastos.filter(g =>
                             g.imovel_id === id &&
                             (g.mes_ref === payment.mes_referencia || g.mes_ref.startsWith(payment.mes_referencia))
                         );
 
                         const totalExpense = monthExpenses.reduce((acc, curr) => acc + curr.valor, 0);
-                        const gross = payment.valor || 0; // NEW COLUMN NAME
+                        const gross = payment.valor || 0;
                         const net = gross - totalExpense;
 
                         return (
@@ -234,7 +252,6 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                                         <div style={{ fontWeight: '700', textTransform: 'capitalize', fontSize: '1rem' }}>
                                             {monthLabel}
                                         </div>
-                                        {/* DUE DATE IN REPORT */}
                                         <div style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginBottom: '4px' }}>
                                             Vencimento: {dueDate.toLocaleDateString('pt-BR')}
                                         </div>
@@ -324,6 +341,13 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                 message={`Deseja registrar o pagamento do mês (${paymentTarget.label}) para ${imovel.nome}?`}
                 confirmText="Confirmar Pagamento"
                 variant="success"
+            />
+
+            <ExpenseModal
+                isOpen={showExpenseModal}
+                onClose={() => setShowExpenseModal(false)}
+                onSave={handleSaveExpense}
+                monthLabel={paymentTarget.label}
             />
         </div>
     );

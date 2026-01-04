@@ -161,9 +161,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
     }, [user, showToast]);
 
-    // Initial Load
+    // Initial Load & Realtime Subscription
     useEffect(() => {
         fetchData();
+
+        // AUTOMATIC SYNCHRONIZATION (Realtime)
+        const channel = supabase.channel('db-changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'imoveis' },
+                () => { console.log('Realtime: Imoveis changed'); fetchData(); }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'imoveis_pagamentos' },
+                () => { console.log('Realtime: Pagamentos changed'); fetchData(); }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'imoveis_gastos' },
+                () => { console.log('Realtime: Gastos changed'); fetchData(); }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'emprestimos' },
+                () => { console.log('Realtime: Emprestimos changed'); fetchData(); }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'emprestimo_meses' },
+                () => { console.log('Realtime: EmprestimoMeses changed'); fetchData(); }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [fetchData]);
 
     // --- ACTIONS (SUPABASE) ---

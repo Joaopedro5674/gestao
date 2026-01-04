@@ -1,5 +1,7 @@
 import { useApp } from "@/context/AppContext";
 import { ExportDataRow } from "@/utils/exportUtils";
+import { supabase } from "@/lib/supabaseClient";
+import { useState, useEffect } from "react";
 
 export interface RentalSpreadsheetRow extends ExportDataRow {
     property: string;
@@ -28,106 +30,91 @@ export interface LoanSpreadsheetRow extends ExportDataRow {
     paidDate: string;
 }
 
-export function useFinancialData() {
-    const { imoveis, imoveisPagamentos, imoveisGastos, emprestimos, emprestimosMeses, loading } = useApp();
+interface DashboardViewData {
+    alugueis_pagos_mes: number;
+    juros_recebidos_mes: number;
+    gastos_mes: number;
+    lucro_liquido_mes: number;
+}
 
+export function useFinancialData() {
+    // Keep context for Spreadsheet Logic (History) and Lists
+    const {
+        imoveis, imoveisPagamentos, imoveisGastos,
+        emprestimos, loading: contextLoading,
+        lastSync
+    } = useApp();
+
+    const [dashboardView, setDashboardView] = useState<DashboardViewData>({
+        alugueis_pagos_mes: 0,
+        juros_recebidos_mes: 0,
+        gastos_mes: 0,
+        lucro_liquido_mes: 0
+    });
+    const [viewLoading, setViewLoading] = useState(true);
+
+    // FETCH DASHBOARD VIEW (Strict Server-Side Calculation)
+    useEffect(() => {
+        const fetchDashboardView = async () => {
+            setViewLoading(true);
+            try {
+                const { data, error } = await supabase
+                    .from('dashboard_lucro_mensal')
+                    .select('*')
+                    .maybeSingle(); // Safer than single()
+
+                console.log("Dashboard View Fetch Result:", { data, error });
+
+                if (error) {
+                    console.error("Error fetching dashboard view:", error);
+                    // Fallback to zeros? Or retry?
+                } else if (data) {
+                    setDashboardView({
+                        alugueis_pagos_mes: data.alugueis_pagos_mes || 0,
+                        juros_recebidos_mes: data.juros_recebidos_mes || 0,
+                        gastos_mes: data.gastos_mes || 0,
+                        lucro_liquido_mes: data.lucro_liquido_mes || 0
+                    });
+                }
+            } catch (err) {
+                console.error("Dashboard fetch exception:", err);
+            } finally {
+                setViewLoading(false);
+            }
+        };
+
+        fetchDashboardView();
+    }, [lastSync]); // Refetches whenever AppContext syncs (manual or auto)
+
+    // --- SPREADSHEET DATA GENERATION (History - Client Side is OK for Export) ---
+    // (Conserves original logic just for the Excel file generation)
+
+    // Fixed Month Ref for DB comparison (YYYY-MM-01) for spreadsheet logic only
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth(); // 0-11
-    // Fixed Month Ref for DB comparison (YYYY-MM-01)
+    const currentMonth = now.getMonth();
     const currentMesRef = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
 
-    // VALID IDS (Single Source of Truth) - Handle potential null/undefined from context
-    const validImovelIds = new Set((imoveis || []).map(i => i?.id));
-    const validEmprestimoIds = new Set((emprestimos || []).map(e => e?.id));
-
-    // --- DASHBOARD CALCULATIONS (CURRENT MONTH) ---
-
-    // 1. Rental Revenue (Current Month Strict)
-    // Sum 'valor_pago' from imoveis_pagamentos where mes_ref matches current month
-    const rentalRevenue = (imoveisPagamentos || [])
-        .filter(p => {
-            if (!validImovelIds.has(p.imovel_id)) return false;
-            if (p.status !== 'pago') return false;
-            // Handle YYYY-MM or YYYY-MM-DD formats safely
-            return p.mes_referencia && p.mes_referencia.slice(0, 7) === currentMesRef.slice(0, 7);
-        })
-        .reduce((acc, p) => acc + (p.valor || 0), 0);
-
-    // 2. Rental Expenses (Current Month Strict)
-    // Sum 'valor' from imoveis_gastos where mes_ref matches current month
-    const rentalExpenses = (imoveisGastos || [])
-        .filter(e => {
-            if (!validImovelIds.has(e.imovel_id)) return false;
-            return e.mes_ref === currentMesRef;
-        })
-        .reduce((acc, e) => acc + e.valor, 0);
-
-    const rentalNetProfit = rentalRevenue - rentalExpenses;
-
-    // 3. Loans Interest (Contracted - Active Portfolio Value)
-    // Sum 'juros_total_contratado' for ALL ACTIVE loans.
-    // Represents the user's "Asset Value" in terms of future interest.
-    const totalLoanInterestContracted = (emprestimos || [])
-        .filter(e => validEmprestimoIds.has(e.id))
-        .filter(e => e.status === 'ativo')
-        .reduce((acc, e) => acc + e.juros_total_contratado, 0);
-
-    // 4. Loan Revenue (Total Received in Current Month)
-    // Optional: How much cash flow from loans this month?
-    // Based on 'data_pagamento'.
-    const loanRevenue = ((emprestimos || [])
-        .filter(e => validEmprestimoIds.has(e.id))
-        .filter(e => e.status === 'pago')
-        .filter(e => {
-            if (!e.data_pagamento) return false;
-            const d = new Date(e.data_pagamento);
-            // Match Year and Month
-            return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-        })
-        .reduce((acc, e) => acc + (e.valor_emprestado + e.juros_total_contratado), 0))
-        +
-        ((emprestimosMeses || [])
-            .filter(m => {
-                if (!m.pago || !m.pago_em) return false;
-                const d = new Date(m.pago_em);
-                return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-            })
-            .reduce((acc, m) => acc + (m.valor_juros || 0), 0));
-
-    // --- SPREADSHEET DATA GENERATION (History) ---
-
     const rentalSpreadsheetData: RentalSpreadsheetRow[] = [];
-
-    // 1. Collect all unique months from History (Payments + Expenses)
     const monthKeys = new Set<string>();
 
-    // Add check: ensure valid strings
     imoveisPagamentos.forEach(p => {
         if (p.mes_referencia && p.mes_referencia.length >= 7) monthKeys.add(p.mes_referencia.slice(0, 7)); // YYYY-MM
     });
     imoveisGastos.forEach(g => {
         if (g.mes_ref && g.mes_ref.length >= 7) monthKeys.add(g.mes_ref.slice(0, 7));
     });
-
-    // Sort months desc
-    // If no data, ensure we at least show current month
     if (monthKeys.size === 0) monthKeys.add(currentMesRef.slice(0, 7));
 
     const sortedMonths = Array.from(monthKeys).sort().reverse();
 
     sortedMonths.forEach(ym => { // "2024-12"
         const mesRefStrict = `${ym}-01`;
-
-        // For this month, list all properties (matrix view)
         imoveis.forEach(imovel => {
-            // Find payment
             const payment = imoveisPagamentos.find(p =>
                 p.imovel_id === imovel.id &&
                 (p.mes_referencia === mesRefStrict || p.mes_referencia?.slice(0, 7) === ym)
             );
-
-            // Find expenses
             const monthExpenses = imoveisGastos.filter(e =>
                 e.imovel_id === imovel.id &&
                 e.mes_ref === mesRefStrict
@@ -141,7 +128,7 @@ export function useFinancialData() {
                 property: imovel.nome,
                 address: imovel.endereco || "Não informado",
                 phone: imovel.telefone || "Não informado",
-                month: ym, // YYYY-MM
+                month: ym,
                 rentValue: imovel.valor_aluguel,
                 status: isPaid ? 'Pago' : 'Pendente',
                 paymentDate: payment?.pago_em ? new Date(payment.pago_em).toLocaleDateString('pt-BR') : '-',
@@ -152,7 +139,6 @@ export function useFinancialData() {
         });
     });
 
-    // Loans Sheet
     const loanSpreadsheetData: LoanSpreadsheetRow[] = (emprestimos || []).map(e => ({
         client: e.cliente_nome,
         phone: e.telefone || "Não informado",
@@ -168,15 +154,17 @@ export function useFinancialData() {
     }));
 
     return {
-        loading,
+        loading: contextLoading || viewLoading,
         dashboard: {
-            rentalRevenue,
-            rentalExpenses,
-            rentalNetProfit,
-            loanRevenue,
-            totalLoanInterestContracted,
-            validImovelIds,
-            validEmprestimoIds
+            rentalRevenue: dashboardView.alugueis_pagos_mes,
+            rentalExpenses: dashboardView.gastos_mes,
+            rentalNetProfit: dashboardView.lucro_liquido_mes,
+            // Re-mapping names to match UI components
+            // 'Lucro Juros (Total Contratado)' -> WAS contracted total, NOW MUST BE PAID INTEREST THIS MONTH
+            totalLoanInterestContracted: dashboardView.juros_recebidos_mes,
+            loanRevenue: 0, // Deprecated/Unused in new Strict Mode or can keep 0
+            validImovelIds: new Set((imoveis || []).map(i => i?.id)),
+            validEmprestimoIds: new Set((emprestimos || []).map(e => e?.id))
         },
         spreadsheet: {
             rentals: rentalSpreadsheetData,
@@ -184,3 +172,4 @@ export function useFinancialData() {
         }
     };
 }
+
