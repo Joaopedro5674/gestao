@@ -25,7 +25,7 @@ export async function GET(request: Request) {
             .from('cron_logs')
             .insert({
                 executed_at: new Date().toISOString(),
-                status: 'ok',
+                status: 'success',
                 type: type, // 'anti_hibernation' or 'fallback'
                 message: message
             });
