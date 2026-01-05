@@ -26,9 +26,43 @@ export default function SystemStatus() {
                 const lastRun = new Date(data.executed_at);
                 const now = new Date();
                 const diffHours = (now.getTime() - lastRun.getTime()) / (1000 * 60 * 60);
-                setCronHealthy(diffHours <= 26);
+                const isHealthy = diffHours <= 26;
+
+                setCronHealthy(isHealthy);
+
+                // FALLBACK AUTOMÁTICO
+                if (!isHealthy) {
+                    console.warn("⚠️ Cron atrasado (> 26h). Iniciando fallback...");
+                    try {
+                        const res = await fetch('/api/cron/keep-alive?type=fallback');
+                        const json = await res.json();
+                        if (json.status === 'ok') {
+                            console.log("✅ Fallback executado com sucesso.");
+                            // Re-fetch status to update UI immediately
+                            // We call it again effectively resetting the cycle
+                            const { data: newData } = await supabase
+                                .from('cron_logs')
+                                .select('executed_at')
+                                .order('executed_at', { ascending: false })
+                                .limit(1)
+                                .maybeSingle();
+
+                            if (newData?.executed_at) {
+                                setLastCron(newData.executed_at);
+                                setCronHealthy(true);
+                            }
+                        }
+                    } catch (err) {
+                        console.error("❌ Erro ao executar fallback:", err);
+                    }
+                }
+
             } else {
                 setCronHealthy(false);
+                // Trigger fallback if no logs exist yet (first run scenario or total loss)
+                // fetch('/api/cron/keep-alive?type=fallback'); 
+                // Commented out to avoid loop on fresh install, but arguably could be enabled.
+                // For now, let's strictly follow "if > 26h".
             }
         };
         fetchCronStatus();
