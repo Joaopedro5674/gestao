@@ -7,37 +7,31 @@ import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/ToastProvider";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 import ConfirmationModal from "@/components/ConfirmationModal";
-
 import ExpenseModal from "@/components/ExpenseModal";
 
 export default function PropertyDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
     const { id } = resolvedParams;
 
-    // ADDED: adicionarGasto to hook
+    // RESTORED: receberPagamento usage
     const { imoveis, imoveisPagamentos, imoveisGastos, receberPagamento, deletarImovel, adicionarGasto, loading } = useApp();
     const { showToast } = useToast();
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-    // NEW: Expense Modal State
     const [showExpenseModal, setShowExpenseModal] = useState(false);
     const [paymentTarget, setPaymentTarget] = useState<{ date: Date; label: string }>({ date: new Date(), label: '' });
-
-    // NEW: Safe ref for expenses (using Month-Year string or start date)
-    // We need strict 'YYYY-MM-01' for 'mes_ref' DB column found in types
     const [expenseTargetDate, setExpenseTargetDate] = useState<string | null>(null);
 
     const imovel = imoveis.find((p) => p.id === id) || null;
     const history = imoveisPagamentos
         .filter((p) => p.imovel_id === id)
-        .sort((a, b) => b.mes_referencia.localeCompare(a.mes_referencia)); // Newest first for history
+        .sort((a, b) => b.mes_referencia.localeCompare(a.mes_referencia));
 
-    // ... (Existing Date Logic)
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
-    const currentMesRef = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`; // YYYY-MM
+    const currentMesRef = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
 
     const overdueItems = history.filter(p =>
         (p.status === 'atrasado') ||
@@ -48,6 +42,7 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
         .filter(p => p.status !== 'pago')
         .sort((a, b) => a.mes_referencia.localeCompare(b.mes_referencia));
 
+    // RESTORED: Legacy Handler
     const handlePayment = async () => {
         if (!imovel || !paymentTarget.date) return;
         try {
@@ -58,17 +53,15 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
         }
     };
 
-    // NEW: Handler for Saving Expense
     const handleSaveExpense = async (descricao: string, valor: number) => {
         if (!imovel || !expenseTargetDate) return;
         try {
             await adicionarGasto({
                 imovel_id: imovel.id,
-                mes_ref: expenseTargetDate, // Strictly 'YYYY-MM-01'
+                mes_ref: expenseTargetDate,
                 descricao,
                 valor
             });
-            // Toast handled inside hook, but we can double check
             setShowExpenseModal(false);
         } catch (error) {
             console.error("Failed to add expense", error);
@@ -83,6 +76,8 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
             </div>
         );
     }
+
+    const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
     return (
         <div className="container">
@@ -143,7 +138,7 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                 </div>
                 <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--color-primary)' }}>
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(imovel.valor_aluguel)}
+                        {formatCurrency(imovel.valor_aluguel)}
                     </div>
                 </div>
             </div>
@@ -161,35 +156,41 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                         {pendingPayments.map((payment) => {
                             const [pYear, pMonth] = payment.mes_referencia.split('-').map(Number);
                             const dueDate = new Date(pYear, pMonth - 1, imovel.dia_pagamento);
+                            // BUG FIX: Use safe day (15) for payment target to avoid feb/30 overflow to march
+                            const safePaymentDate = new Date(pYear, pMonth - 1, 15);
+
                             const labelMonth = new Date(pYear, pMonth - 1, 15).toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
                             const isLate = payment.status === 'atrasado' || (payment.status === 'pendente' && payment.mes_referencia < currentMesRef);
-
-                            // Construct 'YYYY-MM-01' strictly for expense reference logic
                             const mesRefForExpense = `${payment.mes_referencia}-01`;
 
                             return (
                                 <div key={payment.id} className="card" style={{
-                                    padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    padding: '16px',
+                                    display: 'flex',
+                                    flexWrap: 'wrap', // Allow wrapping on small screens
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    gap: '16px', // Gap between wrapped rows
                                     borderLeft: isLate ? '4px solid var(--color-danger)' : '4px solid var(--color-warning)'
                                 }}>
-                                    <div>
+                                    <div style={{ flex: '1 1 auto', minWidth: '160px' }}>
                                         <div style={{ fontWeight: 'bold', fontSize: '1rem', textTransform: 'capitalize' }}>
                                             {labelMonth}
                                         </div>
-                                        <div style={{ fontSize: '0.8rem', color: isLate ? 'var(--color-danger)' : 'var(--color-warning)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <span>{isLate ? 'Atrasado' : 'A vencer'}</span>
+                                        <div style={{ fontSize: '0.8rem', color: isLate ? 'var(--color-danger)' : 'var(--color-warning)', marginTop: '4px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ whiteSpace: 'nowrap' }}>{isLate ? 'Atrasado' : 'A vencer'}</span>
                                             <span style={{ color: 'var(--color-text-tertiary)' }}>•</span>
-                                            <span>Vence em: {dueDate.toLocaleDateString('pt-BR')}</span>
+                                            <span style={{ whiteSpace: 'nowrap' }}>Vence em: {dueDate.toLocaleDateString('pt-BR')}</span>
                                         </div>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <span style={{ fontWeight: '600', fontSize: '1.1rem' }}>
-                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(imovel.valor_aluguel)}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '0 0 auto', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                                        <span style={{ fontWeight: '600', fontSize: '1.1rem', marginRight: '4px' }}>
+                                            {formatCurrency(imovel.valor_aluguel)}
                                         </span>
-                                        {/* RESTORED GASTOS BUTTON (SECONDARY) */}
+
                                         <button
                                             onClick={() => {
-                                                setPaymentTarget({ date: new Date(), label: labelMonth }); // Label reuse
+                                                setPaymentTarget({ date: new Date(), label: labelMonth });
                                                 setExpenseTargetDate(mesRefForExpense);
                                                 setShowExpenseModal(true);
                                             }}
@@ -204,12 +205,10 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                                             Gastos
                                         </button>
 
+                                        {/* RESTORED: LEGACY PAY BUTTON */}
                                         <button
                                             onClick={() => {
-                                                setPaymentTarget({
-                                                    date: new Date(pYear, pMonth - 1, 15),
-                                                    label: labelMonth
-                                                });
+                                                setPaymentTarget({ date: safePaymentDate, label: labelMonth });
                                                 setShowPaymentModal(true);
                                             }}
                                             className="btn btn-primary"
@@ -225,7 +224,7 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                 )}
             </div>
 
-            {/* RELATÓRIO FINANCEIRO (History) */}
+            {/* RELATÓRIO FINANCEIRO (History) - Unchanged Layout */}
             {history.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
                     <div style={{ padding: '8px', color: 'var(--color-text-tertiary)', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -235,12 +234,10 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                         const [y, m] = payment.mes_referencia.split('-').map(Number);
                         const dueDate = new Date(y, m - 1, imovel.dia_pagamento);
                         const monthLabel = new Date(y, m - 1, 15).toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
-
                         const monthExpenses = imoveisGastos.filter(g =>
                             g.imovel_id === id &&
                             (g.mes_ref === payment.mes_referencia || g.mes_ref.startsWith(payment.mes_referencia))
                         );
-
                         const totalExpense = monthExpenses.reduce((acc, curr) => acc + curr.valor, 0);
                         const gross = payment.valor || 0;
                         const net = gross - totalExpense;
@@ -249,13 +246,10 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                             <div key={payment.id} className="card" style={{ padding: 'var(--space-sm) var(--space-md)', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                                     <div>
-                                        <div style={{ fontWeight: '700', textTransform: 'capitalize', fontSize: '1rem' }}>
-                                            {monthLabel}
-                                        </div>
+                                        <div style={{ fontWeight: '700', textTransform: 'capitalize', fontSize: '1rem' }}>{monthLabel}</div>
                                         <div style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginBottom: '4px' }}>
                                             Vencimento: {dueDate.toLocaleDateString('pt-BR')}
                                         </div>
-
                                         <div style={{ fontSize: '0.8rem', display: 'flex', gap: '8px' }}>
                                             <span style={{ color: payment.status === 'pendente' ? 'var(--color-warning)' : (payment.status === 'atrasado' ? 'var(--color-danger)' : 'var(--color-success)'), fontWeight: 'bold' }}>
                                                 {payment.status.toUpperCase()}
@@ -271,31 +265,29 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
                                         <div style={{ textAlign: 'right' }}>
                                             <div style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', fontWeight: 'bold' }}>Lucro Líquido</div>
                                             <div style={{ fontWeight: '800', fontSize: '1.1rem', color: net > 0 ? 'var(--color-primary)' : 'var(--color-danger)' }}>
-                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(net)}
+                                                {formatCurrency(net)}
                                             </div>
                                         </div>
                                     )}
                                 </div>
-
                                 {payment.status === 'pago' && (
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.8rem', paddingTop: '10px', borderTop: '1px solid var(--color-border)', opacity: 0.8 }}>
                                         <div style={{ color: 'var(--color-success)', fontWeight: '600' }}>
                                             <div style={{ fontSize: '0.65rem', color: 'var(--color-text-tertiary)' }}>ALUGUEL</div>
-                                            +{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(gross)}
+                                            +{formatCurrency(gross)}
                                         </div>
                                         <div style={{ textAlign: 'right', color: totalExpense > 0 ? 'var(--color-danger)' : 'var(--color-text-tertiary)', fontWeight: '600' }}>
                                             <div style={{ fontSize: '0.65rem', color: 'var(--color-text-tertiary)' }}>GASTOS</div>
-                                            {totalExpense > 0 ? '-' : ''}{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalExpense)}
+                                            {totalExpense > 0 ? '-' : ''}{formatCurrency(totalExpense)}
                                         </div>
                                     </div>
                                 )}
-
                                 {monthExpenses.length > 0 && (
                                     <div style={{ marginTop: '10px', padding: '8px', background: 'var(--color-surface-2)', borderRadius: '6px', fontSize: '0.75rem' }}>
                                         {monthExpenses.map((g, idx) => (
                                             <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: idx === monthExpenses.length - 1 ? 0 : '4px' }}>
                                                 <span style={{ color: 'var(--color-text-secondary)' }}>• {g.descricao}</span>
-                                                <span style={{ fontWeight: '600' }}>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(g.valor)}</span>
+                                                <span style={{ fontWeight: '600' }}>{formatCurrency(g.valor)}</span>
                                             </div>
                                         ))}
                                     </div>

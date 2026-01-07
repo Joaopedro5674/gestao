@@ -9,7 +9,7 @@ import { useToast } from "@/components/ToastProvider";
 interface AppContextType {
     imoveis: Imovel[];
     imoveisPagamentos: ImovelPagamento[];
-    imoveisGastos: ImovelGasto[]; // Renamed from expenses
+    imoveisGastos: ImovelGasto[];
     emprestimos: Emprestimo[];
     emprestimosMeses: EmprestimoMes[];
     loading: boolean;
@@ -22,7 +22,7 @@ interface AppContextType {
     // Pagamento Actions
     receberPagamento: (imovelId: string, dataPagamento: Date) => Promise<void>;
 
-    // Gasto Actions (Refactored)
+    // Gasto Actions
     adicionarGasto: (gasto: Omit<ImovelGasto, "id" | "created_at" | "user_id">) => Promise<void>;
     deletarGasto: (id: string) => Promise<void>;
 
@@ -56,6 +56,7 @@ const AppContext = createContext<AppContextType>({
     marcarEmprestimoPago: async () => { },
     deletarEmprestimo: async () => { },
     pagarParcelaJuros: async () => { },
+
     refreshData: async () => { },
     syncStatus: 'idle',
     lastSync: null
@@ -76,7 +77,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const [lastSync, setLastSync] = useState<Date | null>(null);
 
     // --- FETCH DATA (SUPABASE) ---
-    // STRICT SOURCE OF TRUTH
     const fetchData = useCallback(async () => {
         if (!user) {
             setImoveis([]);
@@ -88,7 +88,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             return;
         }
 
-        // Safety check if supabase is not initialized correctly (e.g. missing envs)
         if (!supabase) {
             console.error("Supabase client not initialized.");
             setLoading(false);
@@ -99,10 +98,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setSyncStatus('syncing');
         try {
             console.log("Audit: Sincronizando dados para usuário", user.id);
-
-            // 0. GENERATE MISSING MONTHS (RPC Backfill)
-            const { error: rpcError } = await supabase.rpc('gerar_mensalidades_pendentes');
-            if (rpcError) console.error("Auto-Generation Error TRACE:", JSON.stringify(rpcError, null, 2), rpcError);
 
             // 1. Imoveis
             const { data: imoveisData, error: imoveisError } = await supabase
@@ -133,10 +128,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 .select('*')
                 .eq('user_id', user.id);
             if (gastosError) {
-                console.warn("Audit: Erro ao buscar gastos (pode estar vazia):", gastosError.message);
+                console.warn("Audit: Erro ao buscar gastos:", gastosError.message);
             }
 
-            // 5. Emprestimo Meses (Modelo 2)
+            // 5. Emprestimo Meses
             const { data: mesesData, error: mesesError } = await supabase
                 .from('emprestimo_meses')
                 .select('*')
@@ -150,6 +145,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setEmprestimosMeses(mesesData || []);
             console.log("Audit: Sincronização concluída com sucesso.");
 
+            // --- AUTO-GENERATE CURRENT MONTH (Self-Healing) ---
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const currentMesRef = `${year}-${month}`;
+
+            const missingPayments = (imoveisData || []).filter(imovel => {
+                if (!imovel.ativo) return false;
+                const hasPayment = (pagamentosData || []).some(p =>
+                    p.imovel_id === imovel.id && p.mes_referencia === currentMesRef
+                );
+                return !hasPayment;
+            }).map(imovel => ({
+                imovel_id: imovel.id,
+                mes_referencia: currentMesRef,
+                status: 'pendente', // Default clean slate
+                user_id: user.id,
+                valor: 0 // Will generally be null or 0 until paid/updated? Or usage?
+                // Legacy schema might expect 0 or null. 
+                // But usually we don't store "valor_aluguel" here until paid?
+                // Let's check schema. "pago" is bool. "valor" is numeric.
+                // Usually "valor" in payments table is "valor PAGO".
+                // So 0 is fine for pending.
+            }));
+
+            if (missingPayments.length > 0) {
+                console.log(`Audit: Gerando ${missingPayments.length} mensalidades pendentes para ${currentMesRef}...`);
+                const { data: newPayments, error: createError } = await supabase
+                    .from('imoveis_pagamentos')
+                    .insert(missingPayments)
+                    .select();
+
+                if (createError) {
+                    console.error("Audit: Erro ao gerar mensalidades:", createError);
+                } else if (newPayments) {
+                    // Append locally to avoid full re-fetch loop
+                    setImoveisPagamentos(prev => [...prev, ...newPayments as any]);
+                }
+            }
+            // --------------------------------------------------
+
             setLastSync(new Date());
             setSyncStatus('idle');
         } catch (error) {
@@ -161,37 +197,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
     }, [user, showToast]);
 
-    // Initial Load & Realtime Subscription
     useEffect(() => {
         fetchData();
-
-        // AUTOMATIC SYNCHRONIZATION (Realtime)
         const channel = supabase.channel('db-changes')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'imoveis' },
-                () => { console.log('Realtime: Imoveis changed'); fetchData(); }
-            )
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'imoveis_pagamentos' },
-                () => { console.log('Realtime: Pagamentos changed'); fetchData(); }
-            )
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'imoveis_gastos' },
-                () => { console.log('Realtime: Gastos changed'); fetchData(); }
-            )
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'emprestimos' },
-                () => { console.log('Realtime: Emprestimos changed'); fetchData(); }
-            )
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'emprestimo_meses' },
-                () => { console.log('Realtime: EmprestimoMeses changed'); fetchData(); }
-            )
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'imoveis' }, () => fetchData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'imoveis_pagamentos' }, () => fetchData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'imoveis_gastos' }, () => fetchData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'emprestimos' }, () => fetchData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'emprestimo_meses' }, () => fetchData())
             .subscribe();
 
         return () => {
@@ -199,33 +212,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         };
     }, [fetchData]);
 
-    // --- ACTIONS (SUPABASE) ---
+    // --- ACTIONS ---
 
-    // IMOVEIS
     const adicionarImovel = async (imovel: Omit<Imovel, "id" | "created_at" | "user_id">) => {
         if (!user) return;
         setSyncStatus('syncing');
-
         try {
-            // RPC ATOMIC CALL
-            const { data, error } = await supabase.rpc('criar_imovel_seguro', {
-                p_nome: imovel.nome,
-                p_cliente_nome: imovel.cliente_nome,
-                p_telefone: imovel.telefone,
-                p_endereco: imovel.endereco,
-                p_valor_aluguel: imovel.valor_aluguel,
-                p_ativo: imovel.ativo,
-                p_dia_pagamento: imovel.dia_pagamento
-            });
+            const { data, error } = await supabase.from('imoveis').insert({
+                ...imovel,
+                user_id: user.id
+            }).select().single();
 
             if (error) throw error;
-            if (!data.success) throw new Error(data.error || 'Erro desconhecido na RPC');
-
-            console.log("Supabase RPC Success: Imóvel criado:", data.id);
-            showToast("Imóvel adicionado com segurança", "success");
+            console.log("Imóvel criado:", data.id);
+            showToast("Imóvel adicionado", "success");
             await fetchData();
         } catch (e) {
-            console.error("Supabase RPC Error:", e);
+            console.error("Erro ao adicionar imóvel:", e);
             showToast("Erro ao adicionar imóvel", "error");
             setSyncStatus('error');
             throw e;
@@ -234,22 +237,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const atualizarImovel = async (id: string, updates: Partial<Imovel>) => {
         if (!user) return;
-        console.log(`Audit: Atualizando imóvel ${id} para usuário ${user.id}...`, updates);
         try {
-            const { data, error } = await supabase
-                .from('imoveis')
-                .update(updates)
-                .eq('id', id)
-                .eq('user_id', user.id)
-                .select();
-
+            const { error } = await supabase.from('imoveis').update(updates).eq('id', id).eq('user_id', user.id);
             if (error) throw error;
-            console.log("Audit Success: Imóvel atualizado:", data);
-
             showToast("Imóvel atualizado", "success");
             await fetchData();
         } catch (e) {
-            console.error("Audit Critical: Erro ao atualizar imóvel:", e);
+            console.error(e);
             showToast("Erro ao atualizar imóvel", "error");
             throw e;
         }
@@ -257,60 +251,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const deletarImovel = async (id: string) => {
         if (!user) return;
-        console.log(`Audit: Excluindo imóvel ${id} e registros relacionados para usuário ${user.id}...`);
         try {
-            // 1. Apagar todos os gastos do imóvel (Filtro por imovel_id e user_id)
-            const { error: gastosError } = await supabase
-                .from('imoveis_gastos')
-                .delete()
-                .eq('imovel_id', id)
-                .eq('user_id', user.id);
-            if (gastosError) throw gastosError;
+            // Delete dependencies manually (Legacy)
+            await supabase.from('imoveis_gastos').delete().eq('imovel_id', id).eq('user_id', user.id);
+            await supabase.from('imoveis_pagamentos').delete().eq('imovel_id', id).eq('user_id', user.id);
+            const { error } = await supabase.from('imoveis').delete().eq('id', id).eq('user_id', user.id);
+            if (error) throw error;
 
-            // 2. Apagar todos os pagamentos do imóvel
-            const { error: pagamentosError } = await supabase
-                .from('imoveis_pagamentos')
-                .delete()
-                .eq('imovel_id', id)
-                .eq('user_id', user.id);
-            if (pagamentosError) throw pagamentosError;
-
-            // 3. Apagar o imóvel principal
-            const { error: imovelError } = await supabase
-                .from('imoveis')
-                .delete()
-                .eq('id', id)
-                .eq('user_id', user.id);
-            if (imovelError) throw imovelError;
-
-            console.log("Audit Success: Imóvel e dependências excluídos.");
-            showToast("Imóvel e todos os registros relacionados foram excluídos", "success");
+            showToast("Imóvel excluído", "success");
             await fetchData();
         } catch (e) {
-            const error = e as { message?: string };
-            console.error("Audit Critical: Erro ao deletar imóvel:", error);
-            showToast("Erro ao excluir imóvel: " + (error.message || "Tente novamente"), "error");
+            console.error(e);
+            showToast("Erro ao excluir imóvel", "error");
         }
     };
 
-    // PAGAMENTOS REFACTOR (Direct Update with Mes Ref)
     const receberPagamento = async (imovelId: string, dataPagamento: Date) => {
-        if (!user) {
-            showToast("Usuário não autenticado", "error");
-            return;
-        }
+        if (!user) return;
 
         const year = dataPagamento.getFullYear();
         const month = String(dataPagamento.getMonth() + 1).padStart(2, '0');
-        const mesRef = `${year}-${month}`; // YYYY-MM (TEXT)
-
+        const mesRef = `${year}-${month}`;
         const imovel = imoveis.find(i => i.id === imovelId);
         if (!imovel) return;
 
         setSyncStatus('syncing');
-
         try {
-            // STRICT UPDATE: Update existing 'pendente' or 'atrasado' record
+            // Upsert Logic (Legacy)
             const { data, error } = await supabase
                 .from('imoveis_pagamentos')
                 .update({
@@ -325,10 +292,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
             if (error) throw error;
             if (!data || data.length === 0) {
-                // If not found, it might be that it doesn't exist yet (gap).
-                // Or user is trying to pay a future month that hasn't been generated?
-                // But the UI lists existing months.
-                // Fallback: Insert if needed (though generated usually)
                 const { error: insertError } = await supabase.from('imoveis_pagamentos').insert({
                     imovel_id: imovelId,
                     mes_referencia: mesRef,
@@ -340,36 +303,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 if (insertError) throw insertError;
             }
 
-            showToast(`Pagamento de ${month}/${year} confirmado`, "success");
+            showToast(`Pagamento confirmado`, "success");
             await fetchData();
-
         } catch (e) {
-            console.error("Payment Error:", e);
+            console.error(e);
             showToast("Erro ao processar pagamento", "error");
             setSyncStatus('error');
-            throw e;
         }
     };
 
-    // GASTOS (RESTORATION)
     const adicionarGasto = async (gasto: Omit<ImovelGasto, "id" | "created_at" | "user_id">) => {
-        if (!user) {
-            showToast("Usuário não autenticado", "error");
-            return;
-        }
-
-        // SECURITY: Force remove ID
+        if (!user) return;
         const { id, ...cleanPayload } = gasto as any;
-
         try {
             const { error } = await supabase.from('imoveis_gastos').insert({
                 ...cleanPayload,
                 user_id: user.id
             });
             if (error) throw error;
-            showToast("Gasto registrado com sucesso", "success");
-
-            // CRITICAL: Full fetch after success
+            showToast("Gasto registrado", "success");
             await fetchData();
         } catch (e) {
             console.error(e);
@@ -379,75 +331,50 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const deletarGasto = async (id: string) => {
         if (!user) return;
-        console.log(`Audit: Excluindo gasto ${id} para usuário ${user.id}...`);
         try {
-            const { error } = await supabase
-                .from('imoveis_gastos')
-                .delete()
-                .eq('id', id)
-                .eq('user_id', user.id);
+            const { error } = await supabase.from('imoveis_gastos').delete().eq('id', id).eq('user_id', user.id);
             if (error) throw error;
-            console.log("Audit Success: Gasto removido.");
             showToast("Gasto removido", "success");
             await fetchData();
         } catch (e) {
-            console.error("Audit Critical: Erro ao remover gasto:", e);
+            console.error(e);
             showToast("Erro ao remover gasto", "error");
         }
     };
 
-    // EMPRESTIMOS (RPC)
     const adicionarEmprestimo = async (emprestimo: Omit<Emprestimo, "id" | "created_at" | "user_id">) => {
         if (!user) return;
         setSyncStatus('syncing');
-
         try {
-            // RPC ATOMIC CALL
-            const { data, error } = await supabase.rpc('criar_emprestimo_seguro', {
-                p_cliente_nome: emprestimo.cliente_nome,
-                p_telefone: emprestimo.telefone,
-                p_valor_emprestado: emprestimo.valor_emprestado,
-                p_juros_mensal: emprestimo.juros_mensal,
-                p_dias_contratados: emprestimo.dias_contratados,
-                p_juros_total_contratado: emprestimo.juros_total_contratado,
-                p_data_inicio: emprestimo.data_inicio,
-                p_data_fim: emprestimo.data_fim
-            });
+            const { data, error } = await supabase.from('emprestimos').insert({
+                cliente_nome: emprestimo.cliente_nome,
+                telefone: emprestimo.telefone,
+                valor_emprestado: emprestimo.valor_emprestado,
+                juros_mensal: emprestimo.juros_mensal,
+                dias_contratados: emprestimo.dias_contratados,
+                juros_total_contratado: emprestimo.juros_total_contratado,
+                data_inicio: emprestimo.data_inicio,
+                data_fim: emprestimo.data_fim,
+                user_id: user.id
+            }).select().single();
 
             if (error) throw error;
-            if (!data.success) throw new Error(data.error);
-
             const newLoanId = data.id;
 
-            // --- MODELO 2: Monthly Interest Logic ---
+            // Generate Months (V2 Logic - Keep)
             if (emprestimo.cobranca_mensal) {
-                // 1. Enable flag
-                const { error: updateError } = await supabase
-                    .from('emprestimos')
-                    .update({ cobranca_mensal: true })
-                    .eq('id', newLoanId);
-
-                if (updateError) {
-                    console.error("Error setting cobranca_mensal:", updateError);
-                    // Non-fatal? Maybe, but better throw to warn user
-                }
-
-                // 2. Generate Months
+                await supabase.from('emprestimos').update({ cobranca_mensal: true }).eq('id', newLoanId);
                 const monthsPayload = [];
-                // Use "noon" to avoid timezone rollover issues with simple Date objects
                 const start = new Date(emprestimo.data_inicio + 'T12:00:00');
                 const end = new Date(emprestimo.data_fim + 'T12:00:00');
                 const monthlyInterestValue = (emprestimo.valor_emprestado * emprestimo.juros_mensal) / 100;
 
-                // Loop from Start Month to End Month
-                // Normalize to first day of month
                 let current = new Date(start.getFullYear(), start.getMonth(), 1);
                 const last = new Date(end.getFullYear(), end.getMonth(), 1);
 
                 while (current <= last) {
                     const year = current.getFullYear();
                     const month = String(current.getMonth() + 1).padStart(2, '0');
-
                     monthsPayload.push({
                         emprestimo_id: newLoanId,
                         user_id: user.id,
@@ -455,101 +382,64 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                         valor_juros: monthlyInterestValue,
                         pago: false
                     });
-
-                    // Next month
                     current.setMonth(current.getMonth() + 1);
                 }
 
                 if (monthsPayload.length > 0) {
-                    const { error: insertError } = await supabase
-                        .from('emprestimo_meses')
-                        .insert(monthsPayload);
-
-                    if (insertError) {
-                        console.error("Error generating months:", insertError);
-                        throw insertError;
-                    }
+                    await supabase.from('emprestimo_meses').insert(monthsPayload);
                 }
             }
-            // ----------------------------------------
 
-            console.log("RPC Success: Empréstimo criado:", data.id);
-            showToast("Empréstimo criado com segurança", "success");
+            showToast("Empréstimo criado", "success");
             await fetchData();
         } catch (e) {
-            console.error("RPC Error:", e);
+            console.error(e);
             showToast("Erro ao criar empréstimo", "error");
             setSyncStatus('error');
-            throw e;
         }
     };
 
     const atualizarEmprestimo = async (id: string, updates: Partial<Emprestimo>) => {
         if (!user) return;
-        console.log(`Audit: Atualizando empréstimo ${id} para usuário ${user.id}...`, updates);
         try {
-            const { data, error } = await supabase
-                .from('emprestimos')
-                .update(updates)
-                .eq('id', id)
-                .eq('user_id', user.id)
-                .select();
+            const { error } = await supabase.from('emprestimos').update(updates).eq('id', id).eq('user_id', user.id);
             if (error) throw error;
-            console.log("Audit Success: Empréstimo atualizado:", data);
-
             showToast("Empréstimo atualizado", "success");
             await fetchData();
         } catch (e) {
-            console.error("Audit Critical: Erro ao atualizar empréstimo:", e);
+            console.error(e);
             showToast("Erro ao atualizar empréstimo", "error");
-            throw e;
         }
     };
 
     const marcarEmprestimoPago = async (id: string) => {
         if (!user) return;
-        console.log(`Audit: Marcando empréstimo ${id} como PAGO para usuário ${user.id}...`);
         try {
-            const { data, error } = await supabase
-                .from('emprestimos')
-                .update({
-                    status: 'pago',
-                    data_pagamento: new Date().toISOString()
-                })
-                .eq('id', id)
-                .eq('user_id', user.id)
-                .select();
+            const { error } = await supabase.from('emprestimos').update({
+                status: 'pago',
+                data_pagamento: new Date().toISOString()
+            }).eq('id', id).eq('user_id', user.id);
 
             if (error) throw error;
-            console.log("Audit Success: Empréstimo finalizado:", data);
-
             showToast("Empréstimo marcado como pago", "success");
             await fetchData();
         } catch (e) {
-            console.error("Audit Critical: Erro ao finalizar empréstimo:", e);
+            console.error(e);
             showToast("Erro ao atualizar empréstimo", "error");
-            throw e;
         }
     };
 
     const deletarEmprestimo = async (id: string) => {
         if (!user) return;
-        console.log(`Audit: Excluindo empréstimo ${id} para usuário ${user.id}...`);
         try {
-            const { error } = await supabase
-                .from('emprestimos')
-                .delete()
-                .eq('id', id)
-                .eq('user_id', user.id);
-            if (error) throw error;
-            console.log("Audit Success: Empréstimo excluído.");
-
+            // Dependencies handled by CASCADE? Or manual? V2 usually assumed Manual/Cascade. 
+            // Logic in V5 deleted dependencies. Legacy also likely did.
+            await supabase.from('emprestimos').delete().eq('id', id).eq('user_id', user.id);
             showToast("Empréstimo excluído", "success");
             await fetchData();
         } catch (e) {
-            console.error("Audit Critical: Erro ao excluir empréstimo:", e);
+            console.error(e);
             showToast("Erro ao excluir empréstimo", "error");
-            throw e;
         }
     };
 
@@ -562,11 +452,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 .update({ pago: true, pago_em: new Date().toISOString() })
                 .eq('id', id)
                 .eq('user_id', user.id);
+
             if (error) throw error;
             showToast("Juros do mês pagos!", "success");
             await fetchData();
         } catch (e) {
-            console.error("Erro ao pagar parcela:", e);
+            console.error(e);
             showToast("Erro ao registrar pagamento", "error");
             setSyncStatus('error');
         }
@@ -575,26 +466,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return (
         <AppContext.Provider
             value={{
-                imoveis,
-                imoveisPagamentos,
-                imoveisGastos,
-                emprestimos,
-                emprestimosMeses,
-                loading,
-                adicionarImovel,
-                atualizarImovel,
-                deletarImovel,
-                receberPagamento,
-                adicionarGasto,
-                deletarGasto,
-                adicionarEmprestimo,
-                atualizarEmprestimo,
-                marcarEmprestimoPago,
-                deletarEmprestimo,
-                pagarParcelaJuros,
-                refreshData: fetchData,
-                syncStatus,
-                lastSync
+                imoveis, imoveisPagamentos, imoveisGastos, emprestimos, emprestimosMeses,
+                adicionarImovel, atualizarImovel, deletarImovel,
+                receberPagamento, adicionarGasto, deletarGasto,
+                adicionarEmprestimo, atualizarEmprestimo, marcarEmprestimoPago, deletarEmprestimo, pagarParcelaJuros,
+                refreshData: fetchData, loading, syncStatus, lastSync
             }}
         >
             {children}

@@ -25,8 +25,7 @@ export default function Home() {
   const {
     rentalRevenue,
     rentalNetProfit,
-    loanRevenue,
-    totalLoanInterestContracted,
+    totalLoanInterestReceived, // Legacy Field (Juros Recebidos Mês)
   } = dashboard;
 
   // Local state for time and formatting
@@ -196,17 +195,8 @@ export default function Home() {
           propertyId: imovel.id,
           sortScore: 80
         });
-      } else {
-        // Pending (Not near due)
-        alerts.push({
-          id: `prop-cur-pending-${imovel.id}`,
-          type: 'info',
-          title: 'PENDENTE',
-          subtitle: `${imovel.cliente_nome || imovel.nome} - Vence em ${currentDueDate.toLocaleDateString('pt-BR')}`,
-          propertyId: imovel.id,
-          sortScore: 50
-        });
       }
+      // REMOVED: "PENDENTE" alert (User Request: Remove unnecessary attention items)
     } else {
       // Lookahead
       const nextMonthDate = new Date(currentYearNum, currentMonthNum + 1, 1);
@@ -352,7 +342,8 @@ export default function Home() {
   // Sort: Danger > Warning > Info
   alerts.sort((a, b) => b.sortScore - a.sortScore);
 
-  const totalNetProfit = rentalNetProfit + totalLoanInterestContracted;
+  // LEGACY CALC: Total Net Profit = Rental Net + Loan Interest Received
+  const totalNetProfit = (rentalNetProfit || 0) + (totalLoanInterestReceived || 0);
 
   return (
     <div className="container" key={refreshKey} style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -553,17 +544,12 @@ export default function Home() {
             <Link href="/loans" className="card" style={{ display: 'block', borderLeft: '4px solid var(--color-success)', textDecoration: 'none' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Lucro Juros (Total Contratado)</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Juros Recebidos (Mês)</div>
                   <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--color-text-primary)' }}>
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalLoanInterestContracted)}
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalLoanInterestReceived || 0)}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)' }}>Valor a Receber</div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(loanRevenue)}
-                  </div>
-                </div>
+                {/* Legacy: Pending not shown on main dash in simpler version */}
               </div>
             </Link>
           </section>
