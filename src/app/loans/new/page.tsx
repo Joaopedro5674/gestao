@@ -21,8 +21,59 @@ export default function NewLoanPage() {
         monthlyInterest: false
     });
 
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let v = e.target.value.replace(/\D/g, "");
+        if (v.length > 11) v = v.substring(0, 11);
+        
+        let formatted = v;
+        if (v.length > 10) {
+            formatted = v.replace(/^(\d{2})(\d{1})(\d{4})(\d{4})$/, "($1) $2 $3-$4");
+        } else if (v.length > 6) {
+            formatted = v.replace(/^(\d{2})(\d{4})(\d{1,4})$/, "($1) $2-$3");
+        } else if (v.length > 2) {
+            formatted = v.replace(/^(\d{2})(\d{1,4})$/, "($1) $2");
+        } else if (v.length > 0) {
+            formatted = v.replace(/^(\d{1,2})$/, "($1");
+        }
+        
+        setFormData({ ...formData, phone: formatted });
+    };
+
+    const handlePrincipalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let v = e.target.value;
+        v = v.replace(/[^\d,]/g, "");
+        const parts = v.split(',');
+        let integerPart = parts[0];
+        let decimalPart = parts.length > 1 ? parts.slice(1).join('').substring(0, 2) : null;
+        
+        if (integerPart) {
+            integerPart = parseInt(integerPart, 10).toString();
+            if (integerPart === 'NaN') integerPart = '0';
+            integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+        
+        let formatted = integerPart;
+        if (decimalPart !== null) {
+            formatted += ',' + decimalPart;
+        }
+        setFormData({ ...formData, principal: formatted });
+    };
+
+    const handlePrincipalBlur = () => {
+        let v = formData.principal;
+        if (!v) return;
+        if (!v.includes(',')) {
+            v += ',00';
+        } else {
+            const parts = v.split(',');
+            if (parts[1].length === 0) v += '00';
+            else if (parts[1].length === 1) v += '0';
+        }
+        setFormData({ ...formData, principal: v });
+    };
+
     // Validations
-    const principal = parseFloat(formData.principal.replace(',', '.')) || 0;
+    const principal = parseFloat(formData.principal.replace(/\./g, '').replace(',', '.')) || 0;
     const rate = parseFloat(formData.interestRate.replace(',', '.')) || 0;
 
     // Live Calculation
@@ -98,7 +149,7 @@ export default function NewLoanPage() {
                             className="input"
                             placeholder="(00) 00000-0000"
                             value={formData.phone}
-                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                            onChange={handlePhoneChange}
                         />
                     </div>
                 </div>
@@ -106,13 +157,13 @@ export default function NewLoanPage() {
                 <div className="form-group">
                     <label className="label">Valor Principal (R$)</label>
                     <input
-                        type="number"
+                        type="text"
                         className="input"
                         placeholder="0,00"
                         value={formData.principal}
-                        onChange={(e) => setFormData({ ...formData, principal: e.target.value })}
+                        onChange={handlePrincipalChange}
+                        onBlur={handlePrincipalBlur}
                         required
-                        step="0.01"
                     />
                 </div>
 

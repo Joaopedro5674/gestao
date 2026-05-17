@@ -74,14 +74,80 @@ function PropertyEditForm({
     onSuccess: () => void,
     onDeleteRequest: () => void
 }) {
+    const formatInitialCurrency = (value: number) => {
+        return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    };
+
+    const formatInitialPhone = (val: string) => {
+        if (!val) return "";
+        let v = val.replace(/\D/g, "");
+        if (v.length > 11) v = v.substring(0, 11);
+        if (v.length > 10) return v.replace(/^(\d{2})(\d{1})(\d{4})(\d{4})$/, "($1) $2 $3-$4");
+        if (v.length > 6) return v.replace(/^(\d{2})(\d{4})(\d{1,4})$/, "($1) $2-$3");
+        if (v.length > 2) return v.replace(/^(\d{2})(\d{1,4})$/, "($1) $2");
+        if (v.length > 0) return v.replace(/^(\d{1,2})$/, "($1");
+        return v;
+    };
+
     const [formData, setFormData] = useState({
         name: property.nome,
         clientName: property.cliente_nome || "",
-        phone: property.telefone || "",
+        phone: formatInitialPhone(property.telefone || ""),
         address: property.endereco || "",
-        rentAmount: property.valor_aluguel.toString().replace('.', ','),
+        rentAmount: formatInitialCurrency(property.valor_aluguel),
         paymentDay: (property.dia_pagamento || 10).toString(),
     });
+
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let v = e.target.value.replace(/\D/g, "");
+        if (v.length > 11) v = v.substring(0, 11);
+        
+        let formatted = v;
+        if (v.length > 10) {
+            formatted = v.replace(/^(\d{2})(\d{1})(\d{4})(\d{4})$/, "($1) $2 $3-$4");
+        } else if (v.length > 6) {
+            formatted = v.replace(/^(\d{2})(\d{4})(\d{1,4})$/, "($1) $2-$3");
+        } else if (v.length > 2) {
+            formatted = v.replace(/^(\d{2})(\d{1,4})$/, "($1) $2");
+        } else if (v.length > 0) {
+            formatted = v.replace(/^(\d{1,2})$/, "($1");
+        }
+        
+        setFormData({ ...formData, phone: formatted });
+    };
+
+    const handleRentAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let v = e.target.value;
+        v = v.replace(/[^\d,]/g, "");
+        const parts = v.split(',');
+        let integerPart = parts[0];
+        let decimalPart = parts.length > 1 ? parts.slice(1).join('').substring(0, 2) : null;
+        
+        if (integerPart) {
+            integerPart = parseInt(integerPart, 10).toString();
+            if (integerPart === 'NaN') integerPart = '0';
+            integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+        
+        let formatted = integerPart;
+        if (decimalPart !== null) {
+            formatted += ',' + decimalPart;
+        }
+        setFormData({ ...formData, rentAmount: formatted });
+    };
+
+    const handleRentAmountBlur = () => {
+        let v = formData.rentAmount;
+        if (!v) return;
+        if (!v.includes(',')) {
+            v += ',00';
+        } else {
+            const parts = v.split(',');
+            if (parts[1].length === 0) v += '00';
+            else if (parts[1].length === 1) v += '0';
+        }
+        setFormData({ ...formData, rentAmount: v });
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -90,7 +156,7 @@ function PropertyEditForm({
             cliente_nome: formData.clientName,
             telefone: formData.phone,
             endereco: formData.address,
-            valor_aluguel: parseFloat(formData.rentAmount.replace(',', '.')),
+            valor_aluguel: parseFloat(formData.rentAmount.replace(/\./g, '').replace(',', '.')),
             dia_pagamento: parseInt(formData.paymentDay) || 10,
             ativo: property.ativo
         });
@@ -124,7 +190,7 @@ function PropertyEditForm({
                             type="text"
                             className="input"
                             value={formData.phone}
-                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                            onChange={handlePhoneChange}
                             placeholder="(00) 00000-0000"
                         />
                     </div>
@@ -174,7 +240,8 @@ function PropertyEditForm({
                                 className="input"
                                 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-primary)' }}
                                 value={formData.rentAmount}
-                                onChange={(e) => setFormData({ ...formData, rentAmount: e.target.value })}
+                                onChange={handleRentAmountChange}
+                                onBlur={handleRentAmountBlur}
                                 placeholder="0,00"
                                 required
                             />
