@@ -1,0 +1,309 @@
+.container {
+    padding: 1rem;
+    padding-bottom: 100px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.headerTitle {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: var(--color-text-primary);
+}
+
+.headerCards {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.headerCards::-webkit-scrollbar {
+    display: none;
+}
+
+.card {
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    flex: 1;
+    min-width: 140px;
+    box-shadow: var(--shadow-sm);
+}
+
+.cardTitle {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.cardValue {
+    font-size: 1.75rem;
+    font-weight: 800;
+    margin-top: 0.5rem;
+}
+
+.cardValueRed { color: var(--color-danger); }
+.cardValueYellow { color: var(--color-warning); }
+.cardValueBlue { color: var(--color-primary); }
+
+.calendarContainer {
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 2rem;
+}
+
+.calendarControls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.monthTitle {
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.navButtons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btnIcon {
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem;
+    cursor: pointer;
+    color: var(--color-text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btnIcon:hover {
+    background: var(--color-surface-elevated);
+    border-color: var(--color-primary);
+}
+
+.btnToday {
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: var(--color-text-primary);
+    transition: all 0.2s;
+}
+
+.btnToday:hover {
+    background: var(--color-surface-elevated);
+    border-color: var(--color-primary);
+}
+
+.weekdaysGrid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 0.5rem;
+}
+
+.weekday {
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+}
+
+.daysGrid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+}
+
+.dayCell {
+    aspect-ratio: 1;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 4px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-surface-2);
+    transition: all 0.2s;
+    position: relative;
+}
+
+.dayCell:hover {
+    border-color: var(--color-border-hover);
+    background: var(--color-surface-elevated);
+}
+
+.dayCellActive {
+    border-color: var(--color-primary);
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.dayCellEmpty {
+    visibility: hidden;
+}
+
+.dayNumber {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-left: 2px;
+}
+
+.todayNumber {
+    color: var(--color-primary);
+    background: rgba(59, 130, 246, 0.2);
+    border-radius: 4px;
+    padding: 0 4px;
+    display: inline-block;
+}
+
+.eventsContainer {
+    display: flex;
+    gap: 3px;
+    justify-content: flex-start;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: auto;
+    padding: 2px;
+}
+
+.eventDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.dotYellow { background: var(--color-warning); }
+.dotGreen { background: var(--color-success); }
+.dotRed { background: var(--color-danger); }
+
+.legend {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.legendItem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+}
+
+.eventsListSection {
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.listTitle {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: var(--color-text-primary);
+}
+
+.emptyState {
+    text-align: center;
+    padding: 2rem;
+    color: var(--color-text-secondary);
+    font-size: 0.95rem;
+}
+
+.eventCardList {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.eventCard {
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-left: 4px solid;
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: transform 0.2s ease;
+}
+
+.eventCard:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.eventCardYellow { border-left-color: var(--color-warning); }
+.eventCardGreen { border-left-color: var(--color-success); }
+.eventCardRed { border-left-color: var(--color-danger); }
+
+.eventInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.eventName {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--color-text-primary);
+}
+
+.eventSub {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+}
+
+.eventValueStatus {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.eventValue {
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: var(--color-text-primary);
+}
+
+.statusBadge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+}
+
+.statusPaid { background: rgba(16, 185, 129, 0.15); color: var(--color-success); }
+.statusPending { background: rgba(245, 158, 11, 0.15); color: var(--color-warning); }
+.statusOverdue { background: rgba(239, 68, 68, 0.15); color: var(--color-danger); }
+
+/* Utility to ensure standard Brazilian date formatting */
+.capitalize { text-transform: capitalize; }

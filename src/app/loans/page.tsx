@@ -54,7 +54,7 @@ export default function LoansPage() {
                 </div>
             ) : (
                 <div style={{ display: 'grid', gap: 'var(--space-md)' }}>
-                    {emprestimos.map((emprestimo) => (
+                    {[...emprestimos].sort((a, b) => (a.status === 'pago' ? 1 : 0) - (b.status === 'pago' ? 1 : 0)).map((emprestimo) => (
                         <LoanCard key={emprestimo.id} emprestimo={emprestimo} />
                     ))}
                 </div>
