@@ -30,7 +30,7 @@ export default function EditPropertyPage({ params }: { params: Promise<{ id: str
         <main style={{ minHeight: '100vh', background: 'var(--color-background)', padding: 'var(--space-md) 0' }}>
             <div className="container" style={{ maxWidth: '800px' }}>
                 <header style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--space-xl)', gap: 'var(--space-sm)' }}>
-                    <Link href={`/properties/${id}`} style={{
+                    <Link href="/properties" style={{
                         padding: '10px',
                         marginLeft: '-10px',
                         color: 'var(--color-text-secondary)',

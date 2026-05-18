@@ -201,7 +201,7 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                    <Link href={`/properties/${imovel.id}/details`} className="btn" style={{ background: 'var(--color-surface-2)', fontSize: '0.8rem', border: '1px solid var(--color-border)', justifyContent: 'center' }}>
+                    <Link href={`/properties/${imovel.id}`} className="btn" style={{ background: 'var(--color-surface-2)', fontSize: '0.8rem', border: '1px solid var(--color-border)', justifyContent: 'center' }}>
                         Ver Dados
                     </Link>
                     <Link href={`/properties/${imovel.id}/edit`} className="btn" style={{ background: 'var(--color-surface-2)', fontSize: '0.8rem', border: '1px solid var(--color-border)', justifyContent: 'center' }}>
