@@ -83,7 +83,8 @@ export async function GET(request: Request) {
                         valor_aluguel: imovel.valor_aluguel,
                         data_vencimento: dueDateString,
                         mes_referencia: p.mes_referencia,
-                        dias_atraso: isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0
+                        dias_atraso: isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0,
+                        dias_faltantes: isUpcoming ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0
                     });
                 }
             });

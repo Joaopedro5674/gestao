@@ -88,7 +88,8 @@ export async function GET(request: Request) {
                             tipo_emprestimo: 'juros_mensal',
                             valor_parcela: (emp.valor_emprestado * emp.juros_mensal) / 100,
                             data_vencimento: dueDateString,
-                            dias_atraso: isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0
+                            dias_atraso: isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0,
+                            dias_faltantes: isUpcoming ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0
                         });
                     }
                 });
@@ -122,7 +123,8 @@ export async function GET(request: Request) {
                         tipo_emprestimo: emp.cobranca_mensal ? 'quitacao_capital' : 'juros_garantidos_final',
                         valor_parcela: emp.cobranca_mensal ? emp.valor_emprestado : (emp.valor_emprestado + emp.juros_total_contratado),
                         data_vencimento: dueDateString,
-                        dias_atraso: isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0
+                        dias_atraso: isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0,
+                        dias_faltantes: isUpcoming ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0
                     });
                 }
             }
