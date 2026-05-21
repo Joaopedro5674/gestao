@@ -43,7 +43,9 @@ export async function GET(request: Request) {
                 if (dueDate.getMonth() !== month) dueDate.setDate(0);
                 dueDate.setHours(0, 0, 0, 0);
 
-                const isUpcoming = dueDate > today && dueDate <= targetDate;
+                const isUpcoming = daysAhead === 0
+                    ? dueDate.getTime() === today.getTime()
+                    : (dueDate > today && dueDate <= targetDate);
                 const isOverdue = dueDate < today;
 
                 if ((status === 'upcoming' && isUpcoming) || (status === 'overdue' && isOverdue)) {
