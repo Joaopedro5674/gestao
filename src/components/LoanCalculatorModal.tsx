@@ -17,8 +17,8 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
     // Live Calculations (Directly in body, no useEffect needed)
     const start = dataInicio && dataFim ? new Date(dataInicio + 'T12:00:00') : null;
     const end = dataInicio && dataFim ? new Date(dataFim + 'T12:00:00') : null;
-    const v = parseFloat(valorInicial);
-    const t = parseFloat(taxaMensal);
+    const v = parseFloat(valorInicial.replace(/\./g, '').replace(',', '.'));
+    const t = parseFloat(taxaMensal.replace(',', '.'));
 
     let dias = 0;
     let jurosProporcional = 0;
@@ -62,10 +62,35 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
                     <div className="form-group">
                         <label className="label">Valor Inicial (R$)</label>
                         <input
-                            type="number"
+                            type="text"
                             className="input"
                             value={valorInicial}
-                            onChange={e => setValorInicial(e.target.value)}
+                            onChange={(e) => {
+                                let val = e.target.value.replace(/[^0-9,]/g, '');
+                                const parts = val.split(',');
+                                if (parts.length > 2) val = parts[0] + ',' + parts.slice(1).join('');
+                                const p = val.split(',');
+                                p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                                if (p.length > 1) {
+                                    p[1] = p[1].substring(0, 2);
+                                    val = p[0] + ',' + p[1];
+                                } else {
+                                    val = p[0];
+                                }
+                                setValorInicial(val);
+                            }}
+                            onBlur={() => {
+                                if (!valorInicial) return;
+                                let val = valorInicial;
+                                if (!val.includes(',')) {
+                                    val = val + ',00';
+                                } else {
+                                    const p = val.split(',');
+                                    if (p[1].length === 0) val = val + '00';
+                                    else if (p[1].length === 1) val = val + '0';
+                                }
+                                setValorInicial(val);
+                            }}
                             placeholder="0,00"
                         />
                     </div>
@@ -78,6 +103,7 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
                             value={taxaMensal}
                             onChange={e => setTaxaMensal(e.target.value)}
                             placeholder="0.0"
+                            step="0.01"
                         />
                     </div>
 
