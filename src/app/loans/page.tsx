@@ -54,7 +54,16 @@ export default function LoansPage() {
                 </div>
             ) : (
                 <div style={{ display: 'grid', gap: 'var(--space-md)' }}>
-                    {[...emprestimos].sort((a, b) => (a.status === 'pago' ? 1 : 0) - (b.status === 'pago' ? 1 : 0)).map((emprestimo) => (
+                    {[...emprestimos]
+                        .sort((a, b) => {
+                            const statusA = a.status === 'pago' ? 1 : 0;
+                            const statusB = b.status === 'pago' ? 1 : 0;
+                            if (statusA !== statusB) {
+                                return statusA - statusB;
+                            }
+                            return a.data_fim.localeCompare(b.data_fim);
+                        })
+                        .map((emprestimo) => (
                         <LoanCard key={emprestimo.id} emprestimo={emprestimo} />
                     ))}
                 </div>
