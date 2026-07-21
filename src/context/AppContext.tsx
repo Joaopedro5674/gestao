@@ -13,6 +13,7 @@ interface AppContextType {
     emprestimos: Emprestimo[];
     emprestimosMeses: EmprestimoMes[];
     loading: boolean;
+    nisCalendar: Record<number, number>;
 
     // Imovel Actions
     adicionarImovel: (imovel: Omit<Imovel, "id" | "created_at" | "user_id">) => Promise<void>;
@@ -45,6 +46,10 @@ const AppContext = createContext<AppContextType>({
     emprestimos: [],
     emprestimosMeses: [],
     loading: true,
+    nisCalendar: {
+        1: 18, 2: 19, 3: 20, 4: 21, 5: 22,
+        6: 25, 7: 26, 8: 27, 9: 28, 0: 29
+    },
     adicionarImovel: async () => { },
     atualizarImovel: async () => { },
     deletarImovel: async () => { },
@@ -72,6 +77,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const [imoveisGastos, setImoveisGastos] = useState<ImovelGasto[]>([]);
     const [emprestimos, setEmprestimos] = useState<Emprestimo[]>([]);
     const [emprestimosMeses, setEmprestimosMeses] = useState<EmprestimoMes[]>([]);
+    const [nisCalendar, setNisCalendar] = useState<Record<number, number>>({
+        1: 18, 2: 19, 3: 20, 4: 21, 5: 22,
+        6: 25, 7: 26, 8: 27, 9: 28, 0: 29
+    });
     const [loading, setLoading] = useState(true);
     const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
     const [lastSync, setLastSync] = useState<Date | null>(null);
@@ -99,50 +108,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         try {
             console.log("Audit: Sincronizando dados para usuário", user.id);
 
-            // 1. Imoveis
-            const { data: imoveisData, error: imoveisError } = await supabase
-                .from('imoveis')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('created_at');
-            if (imoveisError) throw imoveisError;
+            // Execute all queries in parallel to optimize load latency
+            const [
+                imoveisRes,
+                emprestimosRes,
+                pagamentosRes,
+                gastosRes,
+                mesesRes,
+                nisCalendarRes
+            ] = await Promise.all([
+                supabase.from('imoveis').select('*').eq('user_id', user.id).order('created_at'),
+                supabase.from('emprestimos').select('*').eq('user_id', user.id).order('created_at'),
+                supabase.from('imoveis_pagamentos').select('*').eq('user_id', user.id),
+                supabase.from('imoveis_gastos').select('*').eq('user_id', user.id),
+                supabase.from('emprestimo_meses').select('*').eq('user_id', user.id),
+                supabase.from('calendario_nis').select('final_nis, dia_pagamento')
+            ]);
 
-            // 2. Emprestimos
-            const { data: emprestimosData, error: emprestimosError } = await supabase
-                .from('emprestimos')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('created_at');
-            if (emprestimosError) throw emprestimosError;
+            if (imoveisRes.error) throw imoveisRes.error;
+            if (emprestimosRes.error) throw emprestimosRes.error;
+            if (pagamentosRes.error) throw pagamentosRes.error;
+            if (mesesRes.error) throw mesesRes.error;
 
-            // 3. Imoveis Pagamentos
-            const { data: pagamentosData, error: pagamentosError } = await supabase
-                .from('imoveis_pagamentos')
-                .select('*')
-                .eq('user_id', user.id);
-            if (pagamentosError) throw pagamentosError;
-
-            // 4. Imoveis Gastos
-            const { data: gastosData, error: gastosError } = await supabase
-                .from('imoveis_gastos')
-                .select('*')
-                .eq('user_id', user.id);
-            if (gastosError) {
-                console.warn("Audit: Erro ao buscar gastos:", gastosError.message);
+            if (gastosRes.error) {
+                console.warn("Audit: Erro ao buscar gastos:", gastosRes.error.message);
             }
 
-            // 5. Emprestimo Meses
-            const { data: mesesData, error: mesesError } = await supabase
-                .from('emprestimo_meses')
-                .select('*')
-                .eq('user_id', user.id);
-            if (mesesError) throw mesesError;
+            if (!nisCalendarRes.error && nisCalendarRes.data && nisCalendarRes.data.length > 0) {
+                const map: Record<number, number> = {};
+                nisCalendarRes.data.forEach((row: any) => {
+                    map[row.final_nis] = row.dia_pagamento;
+                });
+                setNisCalendar(map);
+            }
 
-            setImoveis(imoveisData || []);
-            setEmprestimos(emprestimosData || []);
-            setImoveisPagamentos(pagamentosData || []);
-            setImoveisGastos(gastosData || []);
-            setEmprestimosMeses(mesesData || []);
+            const imoveisData = imoveisRes.data || [];
+            const emprestimosData = emprestimosRes.data || [];
+            const pagamentosData = pagamentosRes.data || [];
+            const gastosData = gastosRes.data || [];
+            const mesesData = mesesRes.data || [];
+
+            setImoveis(imoveisData);
+            setEmprestimos(emprestimosData);
+            setImoveisPagamentos(pagamentosData);
+            setImoveisGastos(gastosData);
+            setEmprestimosMeses(mesesData);
             console.log("Audit: Sincronização concluída com sucesso.");
 
             // --- AUTO-GENERATE CURRENT MONTH (Self-Healing) ---
@@ -355,6 +365,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 juros_total_contratado: emprestimo.juros_total_contratado,
                 data_inicio: emprestimo.data_inicio,
                 data_fim: emprestimo.data_fim,
+                tipo: emprestimo.tipo || 'comum',
+                cartao_senha: emprestimo.cartao_senha || null,
+                cartao_valor_retirada: emprestimo.cartao_valor_retirada || null,
+                cartao_final_nis: emprestimo.cartao_final_nis !== undefined ? emprestimo.cartao_final_nis : null,
+                cartao_quantidade_meses: emprestimo.cartao_quantidade_meses !== undefined ? emprestimo.cartao_quantidade_meses : null,
                 user_id: user.id
             }).select().single();
 
@@ -466,7 +481,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return (
         <AppContext.Provider
             value={{
-                imoveis, imoveisPagamentos, imoveisGastos, emprestimos, emprestimosMeses,
+                imoveis, imoveisPagamentos, imoveisGastos, emprestimos, emprestimosMeses, nisCalendar,
                 adicionarImovel, atualizarImovel, deletarImovel,
                 receberPagamento, adicionarGasto, deletarGasto,
                 adicionarEmprestimo, atualizarEmprestimo, marcarEmprestimoPago, deletarEmprestimo, pagarParcelaJuros,

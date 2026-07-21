@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import styles from "./calendar.module.css";
+import { calcularVencimentoParcela } from "@/utils/loanHelpers";
 
 interface CalendarEvent {
     id: string;
@@ -16,7 +17,7 @@ interface CalendarEvent {
 }
 
 export default function CalendarPage() {
-    const { imoveis, imoveisPagamentos, emprestimos, emprestimosMeses, loading } = useApp();
+    const { imoveis, imoveisPagamentos, emprestimos, emprestimosMeses, loading, nisCalendar } = useApp();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
@@ -61,27 +62,20 @@ export default function CalendarPage() {
                 }
             }
 
-            // Juros mensais
+            // Juros / Retiradas mensais
             if (emp.cobranca_mensal && emp.data_inicio) {
-                const monthlyInterestValue = (emp.valor_emprestado * emp.juros_mensal) / 100;
-
                 const meses = emprestimosMeses.filter(m => m.emprestimo_id === emp.id);
                 meses.forEach(m => {
                     if (!m.mes_referencia) return;
                     
-                    // --- MESMA LÓGICA DO [id]/page.tsx (STRICT 30 DAYS) ---
-                    const [refYear, refMonth] = m.mes_referencia.split('-').map(Number);
-                    const start = new Date(emp.data_inicio + 'T12:00:00');
-                    const startYear = start.getFullYear();
-                    const startMonth = start.getMonth() + 1;
-
-                    const monthDiff = ((refYear - startYear) * 12) + (refMonth - startMonth);
-                    const multiplier = Math.max(0, monthDiff + 1);
-
-                    const dueDate = new Date(start);
-                    dueDate.setDate(dueDate.getDate() + (30 * multiplier));
+                    const dueDate = calcularVencimentoParcela(
+                        emp.data_inicio,
+                        m.mes_referencia,
+                        emp.tipo === 'cartao',
+                        emp.cartao_final_nis,
+                        nisCalendar
+                    );
                     dueDate.setHours(0, 0, 0, 0);
-                    // -------------------------------------------------------
 
                     let status: CalendarEvent['status'] = m.pago ? 'paid' : 'pending';
                     if (status === 'pending' && dueDate < today) status = 'overdue';
@@ -90,8 +84,10 @@ export default function CalendarPage() {
                         id: `emp-int-${m.id}`,
                         type: 'loan',
                         title: emp.cliente_nome,
-                        subtitle: `Juros Mensais (${m.mes_referencia})`,
-                        value: monthlyInterestValue,
+                        subtitle: emp.tipo === 'cartao' 
+                            ? `Retirada Cartão (${m.mes_referencia})` 
+                            : `Juros Mensais (${m.mes_referencia})`,
+                        value: m.valor_juros,
                         date: getLocalYYYYMMDD(dueDate),
                         status
                     });

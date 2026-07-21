@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, use, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Trash2, Save, User, DollarSign, Percent, Calendar, Phone } from "lucide-react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { Emprestimo } from "@/types";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
+import { calcularVencimentoCartao, calcularFinanceiroCartao } from "@/utils/loanHelpers";
 
 export default function EditLoanPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
@@ -92,6 +93,8 @@ function LoanEditForm({
     onSuccess: () => void,
     onDeleteRequest: () => void
 }) {
+    const { nisCalendar } = useApp();
+    const isCartao = loan.tipo === 'cartao';
 
     const [formData, setFormData] = useState({
         borrowerName: loan.cliente_nome,
@@ -102,16 +105,55 @@ function LoanEditForm({
         dueDate: loan.data_fim
     });
 
+    const [cartaoData, setCartaoData] = useState({
+        senha: loan.cartao_senha || "",
+        valorRetirada: loan.cartao_valor_retirada ? loan.cartao_valor_retirada.toString().replace('.', ',') : "",
+        quantidadeMeses: loan.cartao_quantidade_meses ? loan.cartao_quantidade_meses.toString() : "",
+        finalNis: loan.cartao_final_nis !== undefined && loan.cartao_final_nis !== null ? loan.cartao_final_nis.toString() : ""
+    });
+
+    // Auto-calculate dueDate for Card Loans when NIS, Months or StartDate changes
+    useEffect(() => {
+        if (isCartao && cartaoData.finalNis !== "" && cartaoData.quantidadeMeses !== "" && formData.startDate) {
+            const finalNisNum = parseInt(cartaoData.finalNis, 10);
+            const monthsNum = parseInt(cartaoData.quantidadeMeses, 10) || 1;
+            const formattedDueDate = calcularVencimentoCartao(formData.startDate, finalNisNum, monthsNum, nisCalendar);
+            if (formattedDueDate) {
+                setFormData(prev => ({ ...prev, dueDate: formattedDueDate }));
+            }
+        }
+    }, [isCartao, cartaoData.finalNis, cartaoData.quantidadeMeses, formData.startDate, nisCalendar]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        await onSubmit(loan.id, {
+        
+        const parsedPrincipal = parseFloat(formData.principal.replace(/\./g, '').replace(',', '.')) || 0;
+
+        const updates: Partial<Emprestimo> = {
             cliente_nome: formData.borrowerName,
-            valor_emprestado: parseFloat(formData.principal.replace(',', '.')),
-            juros_mensal: parseFloat(formData.interestRate.replace(',', '.')),
+            valor_emprestado: parsedPrincipal,
             telefone: formData.phone,
             data_inicio: formData.startDate,
             data_fim: formData.dueDate
-        });
+        };
+
+        if (isCartao) {
+            const months = parseInt(cartaoData.quantidadeMeses, 10) || 1;
+            const parsedRetirada = parseFloat(cartaoData.valorRetirada.replace(/\./g, '').replace(',', '.')) || 0;
+            const calc = calcularFinanceiroCartao(parsedPrincipal, parsedRetirada, months);
+
+            updates.juros_mensal = isNaN(calc.rate) ? 0 : calc.rate;
+            updates.juros_total_contratado = isNaN(calc.interest) ? 0 : calc.interest;
+            updates.cartao_senha = cartaoData.senha;
+            updates.cartao_valor_retirada = parsedRetirada;
+            updates.cartao_final_nis = isNaN(parseInt(cartaoData.finalNis, 10)) ? undefined : parseInt(cartaoData.finalNis, 10);
+            updates.cartao_quantidade_meses = isNaN(parseInt(cartaoData.quantidadeMeses, 10)) ? undefined : parseInt(cartaoData.quantidadeMeses, 10);
+        } else {
+            const rate = parseFloat(formData.interestRate.replace(',', '.')) || 0;
+            updates.juros_mensal = isNaN(rate) ? 0 : rate;
+        }
+
+        await onSubmit(loan.id, updates);
         onSuccess();
     };
 
@@ -154,6 +196,101 @@ function LoanEditForm({
                 </div>
             </section>
 
+            {/* Seção 1.5: Dados do Cartão (Condicional) */}
+            {isCartao && (
+                <section className="card" style={{ padding: 'var(--space-lg)', border: '1px solid var(--color-border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: 'var(--space-lg)', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-sm)' }}>
+                        <User size={18} color="var(--color-primary)" />
+                        <h2 style={{ fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-text-primary)' }}>Configurações do Cartão</h2>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-lg)' }}>
+                        <div className="form-group">
+                            <label className="label">Senha do Cartão</label>
+                            <input
+                                type="text"
+                                className="input"
+                                value={cartaoData.senha}
+                                onChange={(e) => setCartaoData({ ...cartaoData, senha: e.target.value })}
+                                required
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label className="label">Final do NIS</label>
+                            <select
+                                className="input"
+                                value={cartaoData.finalNis}
+                                onChange={(e) => setCartaoData({ ...cartaoData, finalNis: e.target.value })}
+                                required
+                                style={{
+                                    height: '42px',
+                                    background: 'var(--color-surface-1)',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: '6px',
+                                    width: '100%',
+                                    padding: '0 8px'
+                                }}
+                            >
+                                <option value="">Selecione o NIS</option>
+                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((nis) => (
+                                    <option key={nis} value={nis}>
+                                        NIS {nis} (Pagamento dia {nisCalendar[nis]})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="label">Valor Retirada por Mês (R$)</label>
+                            <input
+                                type="text"
+                                className="input"
+                                value={cartaoData.valorRetirada}
+                                onChange={(e) => {
+                                    let v = e.target.value.replace(/[^\d,]/g, "");
+                                    const parts = v.split(',');
+                                    let integerPart = parts[0];
+                                    let decimalPart = parts.length > 1 ? parts.slice(1).join('').substring(0, 2) : null;
+                                    if (integerPart) {
+                                        integerPart = parseInt(integerPart, 10).toString();
+                                        if (integerPart === 'NaN') integerPart = '0';
+                                        integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                                    }
+                                    let formatted = integerPart;
+                                    if (decimalPart !== null) formatted += ',' + decimalPart;
+                                    setCartaoData({ ...cartaoData, valorRetirada: formatted });
+                                }}
+                                onBlur={() => {
+                                    let v = cartaoData.valorRetirada;
+                                    if (!v) return;
+                                    if (!v.includes(',')) v += ',00';
+                                    else {
+                                        const parts = v.split(',');
+                                        if (parts[1].length === 0) v += '00';
+                                        else if (parts[1].length === 1) v += '0';
+                                    }
+                                    setCartaoData({ ...cartaoData, valorRetirada: v });
+                                }}
+                                required
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label className="label">Quantidade de Meses</label>
+                            <input
+                                type="number"
+                                min="1"
+                                className="input"
+                                value={cartaoData.quantidadeMeses}
+                                onChange={(e) => setCartaoData({ ...cartaoData, quantidadeMeses: e.target.value })}
+                                required
+                            />
+                        </div>
+                    </div>
+                </section>
+            )}
+
             {/* Seção 2: Detalhes do Empréstimo */}
             <section className="card" style={{ padding: 'var(--space-lg)', border: '1px solid var(--color-border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: 'var(--space-lg)', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-sm)' }}>
@@ -176,21 +313,23 @@ function LoanEditForm({
                                 required
                             />
                         </div>
-                        <div className="form-group">
-                            <label className="label">
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <Percent size={12} /> Taxa Mensal
-                                </div>
-                            </label>
-                            <input
-                                type="text"
-                                className="input"
-                                value={formData.interestRate}
-                                onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })}
-                                placeholder="0,00"
-                                required
-                            />
-                        </div>
+                        {!isCartao && (
+                            <div className="form-group">
+                                <label className="label">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <Percent size={12} /> Taxa Mensal
+                                    </div>
+                                </label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    value={formData.interestRate}
+                                    onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-lg)' }}>
@@ -220,6 +359,8 @@ function LoanEditForm({
                                 value={formData.dueDate}
                                 onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                                 required
+                                disabled={isCartao}
+                                style={isCartao ? { opacity: 0.8, cursor: 'not-allowed', background: 'var(--color-surface-2)' } : {}}
                             />
                         </div>
                     </div>

@@ -1,18 +1,20 @@
 "use client";
 
 import { useState, use } from "react";
-import { ChevronLeft, AlertTriangle, UserX, CheckCircle, Clock } from "lucide-react";
+import { ChevronLeft, AlertTriangle, UserX, CheckCircle, Clock, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { useRouter } from "next/navigation";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
+import { calcularVencimentoParcela } from "@/utils/loanHelpers";
 
 export default function LoanDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
     const { id } = resolvedParams;
-    const { emprestimos, deletarEmprestimo, emprestimosMeses, pagarParcelaJuros } = useApp();
+    const { emprestimos, deletarEmprestimo, emprestimosMeses, pagarParcelaJuros, nisCalendar } = useApp();
     const router = useRouter();
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const emprestimo = emprestimos.find((l) => l.id === id) || null;
 
     if (!emprestimo) return <div className="container" style={{ padding: 'var(--space-xl)', textAlign: 'center' }}>Carregando...</div>;
@@ -55,9 +57,16 @@ export default function LoanDetailsPage({ params }: { params: Promise<{ id: stri
             <div className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-md)' }}>
                     <div>
-                        <h2 style={{ fontSize: '1.25rem', marginBottom: '4px' }}>
-                            {emprestimo.cliente_nome}
-                        </h2>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                            <h2 style={{ fontSize: '1.25rem', margin: 0 }}>
+                                {emprestimo.cliente_nome}
+                            </h2>
+                            {emprestimo.tipo === 'cartao' && (
+                                <span style={{ fontSize: '0.7rem', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
+                                    CARTÃO
+                                </span>
+                            )}
+                        </div>
                         <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>Criado em {startDateStr}</p>
                     </div>
                     <div>
@@ -152,6 +161,49 @@ export default function LoanDetailsPage({ params }: { params: Promise<{ id: stri
                     </div>
                 </div>
 
+                {emprestimo.tipo === 'cartao' && (
+                    <div style={{
+                        background: 'var(--color-surface-2)',
+                        padding: '16px',
+                        borderRadius: '8px',
+                        marginTop: 'var(--space-lg)',
+                        border: '1px solid var(--color-border)',
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '12px',
+                        fontSize: '0.9rem'
+                    }}>
+                        <h4 style={{ gridColumn: 'span 2', margin: 0, color: 'var(--color-primary)', fontSize: '0.95rem' }}>Informações do Cartão</h4>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginBottom: '2px' }}>Senha do Cartão</label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
+                                    {showPassword ? emprestimo.cartao_senha : '••••'}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    style={{ background: 'none', border: 'none', padding: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--color-text-secondary)' }}
+                                >
+                                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginBottom: '2px' }}>Final do NIS</label>
+                            <strong>NIS Final {emprestimo.cartao_final_nis}</strong>
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginBottom: '2px' }}>Retirada Mensal</label>
+                            <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(emprestimo.cartao_valor_retirada || 0)} / mês</strong>
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginBottom: '2px' }}>Meses Contratados</label>
+                            <strong>{emprestimo.cartao_quantidade_meses} meses</strong>
+                        </div>
+                    </div>
+                )}
+
                 <div style={{ background: 'var(--color-surface-2)', padding: '16px', borderRadius: '8px', marginTop: 'var(--space-lg)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                         <span style={{ fontWeight: '600' }}>Total {isPaid ? 'Pago' : 'a Receber'}</span>
@@ -167,7 +219,7 @@ export default function LoanDetailsPage({ params }: { params: Promise<{ id: stri
                 <div style={{ marginTop: 'var(--space-lg)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-md)', paddingBottom: '8px', borderBottom: '1px solid var(--color-border)' }}>
                         <Clock size={18} color="var(--color-text-secondary)" />
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Juros Mensais</h3>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>{emprestimo.tipo === 'cartao' ? 'Retiradas Mensais' : 'Juros Mensais'}</h3>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -191,19 +243,16 @@ export default function LoanDetailsPage({ params }: { params: Promise<{ id: stri
                                 const monthName = dateObj.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
                                 const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
-                                // --- DUE DATE CALCULATION (STRICT 30 DAYS) ---
-                                const [refYear, refMonth] = mes.mes_referencia.split('-').map(Number);
-                                const start = new Date(emprestimo.data_inicio + 'T12:00:00');
-                                const startYear = start.getFullYear();
-                                const startMonth = start.getMonth() + 1;
-
-                                const monthDiff = ((refYear - startYear) * 12) + (refMonth - startMonth);
-                                const multiplier = Math.max(0, monthDiff + 1);
-
-                                const calculatedDueDate = new Date(start);
-                                calculatedDueDate.setDate(calculatedDueDate.getDate() + (30 * multiplier));
-                                const calculatedDueDateStr = calculatedDueDate.toLocaleDateString('pt-BR');
-                                // ---------------------------------------------
+                                // --- DUE DATE CALCULATION ---
+                                const dueDateObj = calcularVencimentoParcela(
+                                    emprestimo.data_inicio,
+                                    mes.mes_referencia,
+                                    emprestimo.tipo === 'cartao',
+                                    emprestimo.cartao_final_nis,
+                                    nisCalendar
+                                );
+                                const calculatedDueDateStr = dueDateObj.toLocaleDateString('pt-BR');
+                                // ---------------------------------------------------------------
 
                                 return (
                                     <div key={mes.id} className="card" style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: isPast ? '4px solid var(--color-danger)' : (isCurrent ? '4px solid var(--color-success)' : '4px solid var(--color-border)') }}>
@@ -241,7 +290,7 @@ export default function LoanDetailsPage({ params }: { params: Promise<{ id: stri
                                                 style={{ fontSize: '0.8rem', padding: '8px 16px' }}
                                                 onClick={() => pagarParcelaJuros(mes.id)}
                                             >
-                                                Pagar juros
+                                                {emprestimo.tipo === 'cartao' ? 'Confirmar retirada' : 'Pagar juros'}
                                             </button>
                                         ) : (
                                             <div style={{ opacity: 0.5 }}>

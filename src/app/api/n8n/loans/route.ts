@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { calcularVencimentoParcela } from '@/utils/loanHelpers';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
@@ -44,24 +45,36 @@ export async function GET(request: Request) {
 
         if (error) throw error;
 
+        // Fetch NIS Calendar
+        const { data: nisRows } = await supabaseAdmin
+            .from('calendario_nis')
+            .select('final_nis, dia_pagamento');
+
+        const nisCalendar: Record<number, number> = {
+            1: 18, 2: 19, 3: 20, 4: 21, 5: 22,
+            6: 25, 7: 26, 8: 27, 9: 28, 0: 29
+        };
+        if (nisRows) {
+            nisRows.forEach((row: any) => {
+                nisCalendar[row.final_nis] = row.dia_pagamento;
+            });
+        }
+
         const results: any[] = [];
 
         emprestimos.forEach(emp => {
-            // TIPO 2: Juros Mensais
+            // TIPO 2: Juros Mensais / Retiradas Cartão
             if (emp.cobranca_mensal && emp.emprestimo_meses) {
                 const pendingMonths = emp.emprestimo_meses.filter((m: any) => !m.pago);
                 
                 pendingMonths.forEach((m: any) => {
-                    const [refYear, refMonth] = m.mes_referencia.split('-').map(Number);
-                    const start = new Date(emp.data_inicio + 'T12:00:00');
-                    const startYear = start.getFullYear();
-                    const startMonth = start.getMonth() + 1;
-
-                    const monthDiff = ((refYear - startYear) * 12) + (refMonth - startMonth);
-                    const multiplier = Math.max(0, monthDiff + 1);
-
-                    const dueDate = new Date(start);
-                    dueDate.setDate(dueDate.getDate() + (30 * multiplier));
+                    const dueDate = calcularVencimentoParcela(
+                        emp.data_inicio,
+                        m.mes_referencia,
+                        emp.tipo === 'cartao',
+                        emp.cartao_final_nis,
+                        nisCalendar
+                    );
                     dueDate.setHours(0, 0, 0, 0);
                     
                     // ✅ CORRIGIDO: Comparar STRINGS em formato YYYY-MM-DD
@@ -85,8 +98,8 @@ export async function GET(request: Request) {
                             mes_id: m.id,
                             cliente_nome: emp.cliente_nome,
                             telefone: emp.telefone,
-                            tipo_emprestimo: 'juros_mensal',
-                            valor_parcela: (emp.valor_emprestado * emp.juros_mensal) / 100,
+                            tipo_emprestimo: emp.tipo === 'cartao' ? 'cartao_retirada' : 'juros_mensal',
+                            valor_parcela: m.valor_juros,
                             data_vencimento: dueDateString,
                             dias_atraso: isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0,
                             dias_faltantes: isUpcoming ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0

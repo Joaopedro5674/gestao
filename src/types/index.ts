@@ -55,6 +55,11 @@ export interface Emprestimo {
     created_at?: string;
     user_id?: string;
     cobranca_mensal?: boolean;
+    tipo?: 'comum' | 'cartao';
+    cartao_senha?: string;
+    cartao_valor_retirada?: number;
+    cartao_final_nis?: number;
+    cartao_quantidade_meses?: number;
 }
 
 export interface EmprestimoMes {

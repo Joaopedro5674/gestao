@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, TrendingUp, Eye, Edit2, CheckCircle, AlertTriangle, Lock, Calculator, Phone } from "lucide-react";
+import { Plus, TrendingUp, Eye, EyeOff, Edit2, CheckCircle, AlertTriangle, Lock, Calculator, Phone, Calendar } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/ToastProvider";
 import { Emprestimo } from "@/types";
 import { useState } from "react";
 import LoanCalculatorModal from "@/components/LoanCalculatorModal";
 import ConfirmationModal from "@/components/ConfirmationModal";
+import NisCalendarModal from "@/components/NisCalendarModal";
 
 export default function LoansPage() {
     const { emprestimos, loading } = useApp();
     const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+    const [isNisCalendarOpen, setIsNisCalendarOpen] = useState(false);
 
     if (loading) {
         return <div className="container" style={{ textAlign: 'center', padding: 'var(--space-xl)' }}>Carregando...</div>;
@@ -22,6 +24,21 @@ export default function LoansPage() {
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-lg)', flexWrap: 'wrap', gap: '12px' }}>
                 <h1>Meus Empréstimos</h1>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button
+                        onClick={() => setIsNisCalendarOpen(true)}
+                        className="btn"
+                        style={{
+                            padding: '0.5rem 1rem',
+                            background: 'var(--color-surface-2)',
+                            border: '1px solid var(--color-border)',
+                            fontSize: '0.85rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                        }}
+                    >
+                        <Calendar size={18} /> Datas do NIS
+                    </button>
                     <button
                         onClick={() => setIsCalculatorOpen(true)}
                         className="btn"
@@ -37,8 +54,24 @@ export default function LoansPage() {
                     >
                         <Calculator size={18} /> Calcular Juros
                     </button>
-                    <Link href="/loans/new" className="btn btn-primary" style={{ padding: '0.5rem 1rem' }}>
-                        <Plus size={20} /> <span style={{ marginLeft: '4px' }}>Novo</span>
+                    <Link
+                        href="/loans/new?type=cartao"
+                        className="btn"
+                        style={{
+                            padding: '0.5rem 1rem',
+                            background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                            color: 'white',
+                            border: 'none',
+                            fontSize: '0.85rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                        }}
+                    >
+                        <Plus size={18} /> <span>+ Cartão</span>
+                    </Link>
+                    <Link href="/loans/new" className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+                        <Plus size={20} /> <span style={{ marginLeft: '4px' }}>Comum</span>
                     </Link>
                 </div>
             </header>
@@ -73,6 +106,11 @@ export default function LoansPage() {
                 isOpen={isCalculatorOpen}
                 onClose={() => setIsCalculatorOpen(false)}
             />
+
+            <NisCalendarModal
+                isOpen={isNisCalendarOpen}
+                onClose={() => setIsNisCalendarOpen(false)}
+            />
         </div>
     );
 }
@@ -82,6 +120,7 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
     const { marcarEmprestimoPago } = useApp();
     const { showToast } = useToast();
     const [showPaidModal, setShowPaidModal] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const isPaid = emprestimo.status === 'pago';
 
@@ -152,6 +191,15 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
                             <CheckCircle size={8} /> Juros Mensais
                         </div>
                     )}
+
+                    {emprestimo.tipo === 'cartao' && (
+                        <div style={{
+                            fontSize: '0.6rem', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', color: 'white', padding: '2px 6px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '2px',
+                            whiteSpace: 'nowrap', maxWidth: '100%'
+                        }} title="Empréstimo tipo Cartão">
+                            <CheckCircle size={8} /> Cartão
+                        </div>
+                    )}
                 </div>
 
                 <span style={{ color: 'var(--color-text-tertiary)', fontWeight: 'normal', fontSize: '0.8rem' }}>
@@ -185,6 +233,49 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
                         </div>
                     </div>
                 </div>
+
+                {emprestimo.tipo === 'cartao' && (
+                    <div style={{
+                        background: 'var(--color-surface-2)',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        marginBottom: '16px',
+                        border: '1px solid var(--color-border)',
+                        fontSize: '0.85rem',
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '8px'
+                    }}>
+                        <div>
+                            <span style={{ color: 'var(--color-text-secondary)', display: 'block', fontSize: '0.75rem' }}>Senha do Cartão</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
+                                    {showPassword ? emprestimo.cartao_senha : '••••'}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        setShowPassword(!showPassword);
+                                    }}
+                                    style={{ background: 'none', border: 'none', padding: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--color-text-secondary)' }}
+                                >
+                                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <span style={{ color: 'var(--color-text-secondary)', display: 'block', fontSize: '0.75rem' }}>Final do NIS</span>
+                            <strong>NIS Final {emprestimo.cartao_final_nis}</strong>
+                        </div>
+                        <div style={{ gridColumn: 'span 2' }}>
+                            <span style={{ color: 'var(--color-text-secondary)', display: 'block', fontSize: '0.75rem' }}>Retirada Mensal</span>
+                            <strong>
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(emprestimo.cartao_valor_retirada || 0)} / mês ({emprestimo.cartao_quantidade_meses} meses)
+                            </strong>
+                        </div>
+                    </div>
+                )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px', background: 'var(--color-border)', border: '1px solid var(--color-border)', borderRadius: '8px', overflow: 'hidden', marginBottom: '16px' }}>
                     <div style={{ background: 'var(--color-surface-1)', padding: '8px 12px' }}>

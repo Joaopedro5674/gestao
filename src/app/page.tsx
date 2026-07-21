@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { exportToCSV } from "@/utils/exportUtils";
+import { calcularVencimentoParcela } from "@/utils/loanHelpers";
 import { supabase } from "@/lib/supabaseClient";
 import SystemHealthModal from "@/components/SystemHealthModal";
 import SystemStatus from "@/components/SystemStatus";
@@ -16,7 +17,7 @@ import LogViewer from "@/components/LogViewer";
 
 export default function Home() {
   // V1.0.1 - Force Deploy for Env Vars
-  const { imoveis, emprestimos, imoveisPagamentos, emprestimosMeses, refreshData, loading } = useApp();
+  const { imoveis, emprestimos, imoveisPagamentos, emprestimosMeses, refreshData, loading, nisCalendar } = useApp();
   const { showToast } = useToast();
   const { signOut } = useAuth(); // Auth Hook
 
@@ -289,11 +290,14 @@ export default function Home() {
         // If user wants strict 30 days for everything, we use monthDiff.
         // If monthDiff < 1, maybe force at least 1? Or adhere to logic?
         // Adhere to logic: Index = monthDiff. (If monthDiff < 0 loops shouldn't happen).
-        const multiplier = Math.max(0, monthDiff + 1);
-
-        // 2. Calculate Strict Due Date
-        const dueDate = new Date(startDate);
-        dueDate.setDate(dueDate.getDate() + (30 * multiplier));
+        // 2. Calculate Strict Due Date / NIS Payment Day
+        const dueDate = calcularVencimentoParcela(
+          loan.data_inicio,
+          mes.mes_referencia,
+          loan.tipo === 'cartao',
+          loan.cartao_final_nis,
+          nisCalendar
+        );
 
         // Just for display logic
         const dateObj = new Date(refYear, refMonth - 1, 1);
@@ -317,7 +321,7 @@ export default function Home() {
           alerts.push({
             id: `loan-month-over-${mes.id}`,
             type: 'danger',
-            title: 'JUROS ATRASADOS',
+            title: loan.tipo === 'cartao' ? 'RETIRADA ATRASADA' : 'JUROS ATRASADOS',
             subtitle: `${loan.cliente_nome} - ${capitalizedMonth} - Venceu ${dueCheck.toLocaleDateString('pt-BR')}`,
             propertyId: `/loans/${loan.id}`,
             sortScore: 90
@@ -328,7 +332,7 @@ export default function Home() {
           alerts.push({
             id: `loan-month-near-${mes.id}`,
             type: 'warning',
-            title: 'JUROS PRÓXIMOS',
+            title: loan.tipo === 'cartao' ? 'RETIRADA PRÓXIMA' : 'JUROS PRÓXIMOS',
             subtitle: `${loan.cliente_nome} - ${capitalizedMonth} - Vence ${daysLabel} (${dueCheck.toLocaleDateString('pt-BR')})`,
             propertyId: `/loans/${loan.id}`,
             sortScore: 88
