@@ -102,7 +102,11 @@ export async function GET(request: Request) {
                             valor_parcela: m.valor_juros,
                             data_vencimento: dueDateString,
                             dias_atraso: isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0,
-                            dias_faltantes: isUpcoming ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0
+                            dias_faltantes: isUpcoming ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0,
+                            cartao_final_nis: emp.cartao_final_nis !== undefined ? emp.cartao_final_nis : null,
+                            cartao_senha: emp.cartao_senha || null,
+                            nis: emp.cartao_final_nis !== undefined ? emp.cartao_final_nis : null,
+                            senha: emp.cartao_senha || null
                         });
                     }
                 });
@@ -137,7 +141,11 @@ export async function GET(request: Request) {
                         valor_parcela: emp.cobranca_mensal ? (emp.valor_emprestado + ((emp.valor_emprestado * emp.juros_mensal) / 100)) : emp.valor_emprestado,
                         data_vencimento: dueDateString,
                         dias_atraso: isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0,
-                        dias_faltantes: isUpcoming ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0
+                        dias_faltantes: isUpcoming ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0,
+                        cartao_final_nis: emp.cartao_final_nis !== undefined ? emp.cartao_final_nis : null,
+                        cartao_senha: emp.cartao_senha || null,
+                        nis: emp.cartao_final_nis !== undefined ? emp.cartao_final_nis : null,
+                        senha: emp.cartao_senha || null
                     });
                 }
             }
