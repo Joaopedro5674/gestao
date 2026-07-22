@@ -136,10 +136,11 @@ export default function CapitalPage() {
         fetchData();
     }, []);
 
+    const [editingBank, setEditingBank] = useState<{ bank_id: string; bank_name: string; brand_color: string } | null>(null);
+
     const handleCreateBankSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newBankForm.name) return;
-        const code = newBankForm.code || `${newBankForm.name.toUpperCase().replace(/\s+/g, '_')}`;
 
         try {
             const res = await fetch('/api/capital/banks', {
@@ -147,7 +148,6 @@ export default function CapitalPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: newBankForm.name,
-                    code,
                     brand_color: newBankForm.brand_color
                 })
             });
@@ -155,9 +155,58 @@ export default function CapitalPage() {
             if (res.ok) {
                 setNewBankForm({ name: '', code: '', brand_color: '#820ad1' });
                 fetchData();
+            } else {
+                const errData = await res.json();
+                alert(`Erro ao cadastrar banco: ${errData.error}`);
             }
         } catch (err) {
             console.error("Erro ao criar banco:", err);
+        }
+    };
+
+    const handleEditBankSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingBank) return;
+
+        try {
+            const res = await fetch('/api/capital/banks', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: editingBank.bank_id,
+                    name: editingBank.bank_name,
+                    brand_color: editingBank.brand_color
+                })
+            });
+
+            if (res.ok) {
+                setEditingBank(null);
+                fetchData();
+            } else {
+                const errData = await res.json();
+                alert(`Erro ao editar banco: ${errData.error}`);
+            }
+        } catch (err) {
+            console.error("Erro ao editar banco:", err);
+        }
+    };
+
+    const handleDeleteBank = async (bankId: string, bankName: string) => {
+        if (!confirm(`Tem certeza que deseja excluir o banco "${bankName}"?`)) return;
+
+        try {
+            const res = await fetch(`/api/capital/banks?id=${bankId}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                fetchData();
+            } else {
+                const errData = await res.json();
+                alert(`Erro ao excluir banco: ${errData.error}`);
+            }
+        } catch (err) {
+            console.error("Erro ao excluir banco:", err);
         }
     };
 
@@ -658,10 +707,81 @@ export default function CapitalPage() {
                                     </form>
                                 </div>
                             </div>
+
+                            {/* BANCOS CADASTRAOS LISTA DE GESTÃO */}
+                            <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid var(--color-border)' }}>
+                                <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '14px' }}>🏦 Instituições Financeiras Cadastradas ({banks.length})</h4>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+                                    {banks.map((b) => (
+                                        <div key={b.bank_id} style={{
+                                            padding: '12px 16px', background: 'var(--color-surface-2)', borderRadius: '10px',
+                                            border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: b.brand_color, display: 'inline-block' }} />
+                                                <strong style={{ fontSize: '0.95rem' }}>{b.bank_name}</strong>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                <button
+                                                    onClick={() => setEditingBank(b)}
+                                                    style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)', borderRadius: '6px', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                                                >
+                                                    ✏️ Editar
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteBank(b.bank_id, b.bank_name)}
+                                                    style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '6px', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                                                >
+                                                    🗑️ Excluir
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
             </div>
+
+            {/* MODAL EDITAR BANCO */}
+            {editingBank && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', backdropFilter: 'blur(4px)' }}>
+                    <div className="card" style={{ width: '100%', maxWidth: '420px', padding: '24px' }}>
+                        <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '16px' }}>Editar Banco</h3>
+                        <form onSubmit={handleEditBankSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            <div className="form-group">
+                                <label className="label">Nome do Banco</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    value={editingBank.bank_name}
+                                    onChange={(e) => setEditingBank({ ...editingBank, bank_name: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="label">Cor da Marca</label>
+                                <input
+                                    type="color"
+                                    className="input"
+                                    style={{ height: '40px', padding: '2px' }}
+                                    value={editingBank.brand_color}
+                                    onChange={(e) => setEditingBank({ ...editingBank, brand_color: e.target.value })}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                                <button type="submit" className="btn btn-primary btn-full" style={{ fontWeight: 700 }}>
+                                    Salvar Alterações
+                                </button>
+                                <button type="button" onClick={() => setEditingBank(null)} className="btn btn-full" style={{ background: 'var(--color-surface-2)' }}>
+                                    Cancelar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* MODAL NOVO APORTE */}
             {isAporteModalOpen && (
