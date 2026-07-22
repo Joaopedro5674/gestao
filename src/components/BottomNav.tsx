@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Building2, Banknote, Calendar } from "lucide-react";
+import { Home, Building2, Banknote, Calendar, Landmark } from "lucide-react";
 import styles from "./BottomNav.module.css";
 
 export default function BottomNav() {
@@ -23,6 +23,11 @@ export default function BottomNav() {
             label: "Empréstimos",
             href: "/loans",
             icon: Banknote,
+        },
+        {
+            label: "Capital",
+            href: "/capital",
+            icon: Landmark,
         },
         {
             label: "Calendário",
