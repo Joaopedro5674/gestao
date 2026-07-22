@@ -5,7 +5,9 @@ import { IndexerEngine } from '@/engine/indexerEngine';
 
 export async function GET(request: Request) {
     try {
-        const todayStr = new Date().toISOString().split('T')[0];
+        const { searchParams } = new URL(request.url);
+        const dateParam = searchParams.get('date');
+        const todayStr = dateParam || new Date().toISOString().split('T')[0];
 
         // Fetch official rate from BCB or fallback
         const bcbData = await IndexerEngine.fetchOfficialBcbRate(12);

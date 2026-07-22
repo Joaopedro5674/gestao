@@ -339,6 +339,25 @@ export default function CapitalPage() {
         }
     };
 
+    const [replayResult, setReplayResult] = useState<any>(null);
+    const [replayLoading, setReplayLoading] = useState(false);
+
+    const handleFetchReplay = async () => {
+        if (!replayDate) return;
+        setReplayLoading(true);
+        try {
+            const res = await fetch(`/api/capital/summary?date=${replayDate}`);
+            if (res.ok) {
+                const data = await res.json();
+                setReplayResult(data);
+            }
+        } catch (err) {
+            console.error("Erro no replay:", err);
+        } finally {
+            setReplayLoading(false);
+        }
+    };
+
     return (
         <main style={{ minHeight: '100vh', background: 'var(--color-background)', padding: 'var(--space-md) 0' }}>
             <div className="container" style={{ maxWidth: '1050px' }}>
@@ -655,19 +674,72 @@ export default function CapitalPage() {
                 {/* ABA 3: MÁQUINA DO TEMPO (REPLAY) */}
                 {activeTab === 'timemachine' && (
                     <div className="card" style={{ padding: '24px' }}>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '12px' }}>Time Machine — Replay Financeiro</h3>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '12px' }}>🕰️ Time Machine — Replay Financeiro</h3>
                         <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '20px' }}>
                             Escolha qualquer data no passado para recuar o tempo e visualizar o patrimônio consolidado calculado com as regras vigentes naquele momento.
                         </p>
-                        <div className="form-group" style={{ maxWidth: '300px' }}>
-                            <label className="label">Data de Consulta</label>
-                            <input
-                                type="date"
-                                className="input"
-                                value={replayDate}
-                                onChange={(e) => setReplayDate(e.target.value)}
-                            />
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', marginBottom: '24px', flexWrap: 'wrap' }}>
+                            <div className="form-group" style={{ maxWidth: '240px', margin: 0 }}>
+                                <label className="label">Data de Consulta</label>
+                                <input
+                                    type="date"
+                                    className="input"
+                                    value={replayDate}
+                                    onChange={(e) => setReplayDate(e.target.value)}
+                                />
+                            </div>
+                            <button
+                                onClick={handleFetchReplay}
+                                className="btn btn-primary"
+                                style={{ fontWeight: 700, padding: '10px 20px' }}
+                                disabled={replayLoading}
+                            >
+                                {replayLoading ? 'Recalculando...' : '🔮 Recalcular Patrimônio na Data'}
+                            </button>
                         </div>
+
+                        {replayResult && (
+                            <div style={{ paddingTop: '20px', borderTop: '1px solid var(--color-border)' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                                    <div style={{ background: 'var(--color-surface-2)', padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>Patrimônio Líquido na Data</span>
+                                        <h3 style={{ fontSize: '1.3rem', fontWeight: 800, margin: '4px 0 0 0', color: 'var(--color-primary)' }}>
+                                            {formatBRL(replayResult.summary.total_net_balance)}
+                                        </h3>
+                                    </div>
+                                    <div style={{ background: 'var(--color-surface-2)', padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>Saldo Bruto na Data</span>
+                                        <h3 style={{ fontSize: '1.3rem', fontWeight: 800, margin: '4px 0 0 0' }}>
+                                            {formatBRL(replayResult.summary.total_gross_balance)}
+                                        </h3>
+                                    </div>
+                                    <div style={{ background: 'var(--color-surface-2)', padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>Impostos Retidos (IOF + IR)</span>
+                                        <h3 style={{ fontSize: '1.3rem', fontWeight: 800, margin: '4px 0 0 0', color: '#ef4444' }}>
+                                            {formatBRL(replayResult.summary.total_iof_accumulated + replayResult.summary.total_ir_accumulated)}
+                                        </h3>
+                                    </div>
+                                </div>
+
+                                <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '14px' }}>📦 Lotes de Investimento Ativos em {new Date(replayDate + 'T12:00:00').toLocaleDateString('pt-BR')}</h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    {replayResult.lots.map((s: any) => (
+                                        <div key={s.lot.id} style={{ padding: '14px 16px', background: 'var(--color-surface-1)', borderRadius: '10px', border: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                                            <div>
+                                                <strong>{s.lot.rule_version?.product?.bank?.name || 'Banco'} — {s.lot.rule_version?.product?.name || 'Produto'}</strong>
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                                                    Idade na data: {s.calendarDays} dias corridos ({s.businessDays} dias úteis)
+                                                </div>
+                                            </div>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', display: 'block' }}>Saldo Líquido</span>
+                                                <strong style={{ fontSize: '1.1rem', color: 'var(--color-primary)' }}>{formatBRL(s.netBalance)}</strong>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
