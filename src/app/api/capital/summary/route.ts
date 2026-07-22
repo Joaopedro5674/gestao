@@ -5,9 +5,14 @@ import { IndexerEngine } from '@/engine/indexerEngine';
 
 export async function GET(request: Request) {
     try {
-        const { searchParams } = new URL(request.url);
-        const dateParam = searchParams.get('date');
-        const todayStr = dateParam || new Date().toISOString().split('T')[0];
+        // Compute today's date in BRT timezone (America/Sao_Paulo UTC-3)
+        const getTodayBRT = () => {
+            const d = new Date();
+            const utcTime = d.getTime() + (d.getTimezoneOffset() * 60000);
+            const brtDate = new Date(utcTime - (3 * 3600000)); // UTC-3
+            return brtDate.toISOString().split('T')[0];
+        };
+        const todayStr = dateParam || getTodayBRT();
 
         // Fetch official rate from BCB or fallback
         const bcbData = await IndexerEngine.fetchOfficialBcbRate(12);
