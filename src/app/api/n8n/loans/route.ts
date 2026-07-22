@@ -181,3 +181,83 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
+
+export async function POST(request: Request) {
+    // Auth check
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || authHeader !== `Bearer ${process.env.N8N_API_KEY}`) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+        const body = await request.json();
+        const { loan_id, mes_id, type } = body;
+
+        const targetId = loan_id || body.id;
+
+        if (!targetId) {
+            return NextResponse.json({ error: 'ID do empréstimo ou mês é obrigatório' }, { status: 400 });
+        }
+
+        // Check if mes_id or if type is 'mes'
+        if (mes_id || type === 'mes') {
+            const mId = mes_id || targetId;
+            const { data: mes, error: mErr } = await supabaseAdmin
+                .from('emprestimo_meses')
+                .update({ pago: true, data_pagamento: new Date().toISOString() })
+                .eq('id', mId)
+                .select('*, emprestimo:emprestimos(*)')
+                .single();
+
+            if (mErr) throw mErr;
+
+            const clientName = mes.emprestimo?.cliente_nome || 'N/A';
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('pt-BR');
+            const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            const formattedMsg = `✅ Parcela Mensal Quitada com Sucesso!\n\n👤 Cliente: ${clientName}\n💳 Valor: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(mes.valor_juros)}\n📅 Data: ${dateStr}\n⏰ Hora: ${timeStr}`;
+
+            return NextResponse.json({
+                success: true,
+                cliente_nome: clientName,
+                valor: mes.valor_juros,
+                tipo: 'parcela_mensal',
+                data: dateStr,
+                hora: timeStr,
+                message: formattedMsg,
+                data_record: mes
+            });
+        } else {
+            // Full loan payoff
+            const { data: loan, error: lErr } = await supabaseAdmin
+                .from('emprestimos')
+                .update({ status: 'pago', data_pagamento: new Date().toISOString() })
+                .eq('id', targetId)
+                .select('*')
+                .single();
+
+            if (lErr) throw lErr;
+
+            const clientName = loan.cliente_nome || 'N/A';
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('pt-BR');
+            const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            const formattedMsg = `✅ Empréstimo Quitado com Sucesso!\n\n👤 Cliente: ${clientName}\n💳 Tipo: Quitação de Empréstimo\n📅 Data: ${dateStr}\n⏰ Hora: ${timeStr}`;
+
+            return NextResponse.json({
+                success: true,
+                cliente_nome: clientName,
+                valor: loan.valor_emprestado,
+                tipo: 'quitacao_emprestimo',
+                data: dateStr,
+                hora: timeStr,
+                message: formattedMsg,
+                data_record: loan
+            });
+        }
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}
