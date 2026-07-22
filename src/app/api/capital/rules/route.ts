@@ -60,7 +60,6 @@ export async function POST(request: Request) {
                         code: 'NO_IOF_WITH_IR',
                         name: 'Isento de IOF (Apenas IR Regressivo)',
                         is_exempt: false,
-                        is_iof_exempt: true,
                         iof_table_json: {},
                         ir_table_json: { "180": 0.225, "360": 0.20, "720": 0.175, "9999": 0.15 }
                     })
@@ -85,8 +84,6 @@ export async function POST(request: Request) {
                         code: 'EXEMPT_ALL',
                         name: '100% Isento de Impostos (LCI/LCA)',
                         is_exempt: true,
-                        is_iof_exempt: true,
-                        is_ir_exempt: true,
                         iof_table_json: {},
                         ir_table_json: {}
                     })

@@ -17,6 +17,7 @@ export class TaxEngine {
      */
     public static getIofRate(calendarDays: number, taxConfig?: TaxRulesConfig): number {
         if (taxConfig?.is_exempt || taxConfig?.is_iof_exempt) return 0;
+        if (taxConfig?.iof_table_json && Object.keys(taxConfig.iof_table_json).length === 0) return 0;
         if (calendarDays >= 30) return 0;
         if (calendarDays <= 0) return 0.96;
 

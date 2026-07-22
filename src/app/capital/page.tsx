@@ -1006,7 +1006,7 @@ export default function CapitalPage() {
                                                                                         }}>
                                                                                             🟢 100% Isento (LCI/LCA)
                                                                                         </span>
-                                                                                    ) : v.tax_rules_config?.is_iof_exempt ? (
+                                                                                    ) : (v.tax_rules_config?.is_iof_exempt || (v.tax_rules_config?.iof_table_json && Object.keys(v.tax_rules_config.iof_table_json).length === 0)) ? (
                                                                                         <span style={{
                                                                                             fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 700,
                                                                                             background: 'rgba(234, 179, 8, 0.15)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.3)'
