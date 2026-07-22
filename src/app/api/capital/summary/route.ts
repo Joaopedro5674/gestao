@@ -11,7 +11,7 @@ export async function GET(request: Request) {
 
         // Fetch official rate from BCB or fallback
         const bcbData = await IndexerEngine.fetchOfficialBcbRate(12);
-        const cdiRate = bcbData ? bcbData.annualRate : 10.65;
+        const cdiRate = bcbData ? bcbData.annualRate : 14.15;
 
         // Fetch banks, products, product_rule_versions, tax_rules_config
         const { data: banks } = await supabaseAdmin.from('banks').select('*').eq('active', true);
