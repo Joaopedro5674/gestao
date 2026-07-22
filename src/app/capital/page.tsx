@@ -125,6 +125,12 @@ export default function CapitalPage() {
                 });
                 setAllProductsList(combined);
             }
+
+            const conciliateRes = await fetch('/api/capital/conciliate');
+            if (conciliateRes.ok) {
+                const concData = await conciliateRes.json();
+                setConciliationHistory(concData.metrics || []);
+            }
         } catch (err) {
             console.error("Erro ao carregar dados do Módulo CAPITAL:", err);
         } finally {
@@ -235,15 +241,28 @@ export default function CapitalPage() {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
     };
 
+    const [conciliationHistory, setConciliationHistory] = useState<any[]>([]);
+
+    const parseCurrencyInput = (valStr: string): number => {
+        if (!valStr) return 0;
+        let clean = valStr.trim();
+        if (clean.includes(',')) {
+            clean = clean.replace(/\./g, '').replace(',', '.');
+        }
+        return parseFloat(clean) || 0;
+    };
+
     const handleCreateAporte = async (e: React.FormEvent) => {
         e.preventDefault();
-        const principal = parseFloat(aporteForm.amount.replace(/\./g, '').replace(',', '.'));
+        const principal = parseCurrencyInput(aporteForm.amount);
         if (isNaN(principal) || principal <= 0) return;
 
         // Default rule version IDs
-        const versionId = aporteForm.productId === 'MERCADOPAGO_CONTA_105CDI' 
-            ? '66666666-6666-6666-6666-666666666666' 
-            : '55555555-5555-5555-5555-555555555555';
+        const versionId = aporteForm.productRuleVersionId || (
+            aporteForm.productId === 'MERCADOPAGO_CONTA_105CDI' 
+                ? '66666666-6666-6666-6666-666666666666' 
+                : '55555555-5555-5555-5555-555555555555'
+        );
 
         try {
             const res = await fetch('/api/capital/lots', {
@@ -269,7 +288,7 @@ export default function CapitalPage() {
 
     const handleConciliateCheck = async () => {
         if (!selectedConciliateBank || !userAppBalanceInput) return;
-        const userVal = parseFloat(userAppBalanceInput.replace(/\./g, '').replace(',', '.'));
+        const userVal = parseCurrencyInput(userAppBalanceInput);
 
         try {
             const res = await fetch('/api/capital/conciliate', {
@@ -286,6 +305,34 @@ export default function CapitalPage() {
             if (res.ok) {
                 const data = await res.json();
                 setConciliateResult(data.audit);
+                fetchData();
+            }
+        } catch (err) {
+            console.error("Erro ao conciliar:", err);
+        }
+    };
+
+    const handleAutoAdjustConciliation = async () => {
+        if (!selectedConciliateBank || !userAppBalanceInput) return;
+        const userVal = parseCurrencyInput(userAppBalanceInput);
+
+        try {
+            const res = await fetch('/api/capital/conciliate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    bank_id: selectedConciliateBank.bank_id,
+                    user_reported_balance: userVal,
+                    engine_calculated_balance: selectedConciliateBank.net_balance,
+                    auto_adjust: true
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setConciliateResult(data.audit);
+                fetchData();
+                alert(`✨ Ajuste de conciliação registrado com sucesso!`);
             }
         } catch (err) {
             console.error("Erro ao conciliar:", err);
@@ -543,16 +590,62 @@ export default function CapitalPage() {
 
                         {conciliateResult && (
                             <div style={{ marginTop: '20px', padding: '16px', background: 'var(--color-surface-2)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                    {conciliateResult.status === 'MATCH' ? (
-                                        <Check size={20} color="var(--color-success)" />
-                                    ) : (
-                                        <AlertTriangle size={20} color="var(--color-danger)" />
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '10px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        {conciliateResult.status === 'MATCH' ? (
+                                            <Check size={20} color="var(--color-success)" />
+                                        ) : (
+                                            <AlertTriangle size={20} color="var(--color-danger)" />
+                                        )}
+                                        <strong style={{ fontSize: '1rem' }}>{conciliateResult.message}</strong>
+                                    </div>
+                                    {conciliateResult.status !== 'MATCH' && (
+                                        <button
+                                            onClick={handleAutoAdjustConciliation}
+                                            className="btn btn-primary"
+                                            style={{ fontSize: '0.8rem', padding: '6px 12px', fontWeight: 700 }}
+                                        >
+                                            ✨ Registar Ajuste Automático
+                                        </button>
                                     )}
-                                    <strong style={{ fontSize: '1rem' }}>{conciliateResult.message}</strong>
                                 </div>
                                 <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
                                     Saldo Reportado: <strong>{formatBRL(conciliateResult.userReported)}</strong> | Saldo Motor: <strong>{formatBRL(conciliateResult.calculated)}</strong>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* HISTÓRICO DE AUDITORIAS */}
+                        {conciliationHistory.length > 0 && (
+                            <div style={{ marginTop: '28px', paddingTop: '20px', borderTop: '1px solid var(--color-border)' }}>
+                                <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '14px' }}>📋 Histórico de Conciliações & Auditorias</h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    {conciliationHistory.map((m: any) => (
+                                        <div key={m.id} style={{
+                                            padding: '12px 16px', background: 'var(--color-surface-1)', borderRadius: '8px',
+                                            border: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'
+                                        }}>
+                                            <div>
+                                                <strong style={{ fontSize: '0.9rem' }}>{m.bank?.name || 'Banco'}</strong>
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginLeft: '10px' }}>
+                                                    {new Date(m.check_date).toLocaleString('pt-BR')}
+                                                </span>
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                                                    Reportado: {formatBRL(m.user_reported_balance)} | Motor: {formatBRL(m.engine_calculated_balance)}
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <span style={{
+                                                    fontSize: '0.75rem', padding: '3px 8px', borderRadius: '12px', fontWeight: 700,
+                                                    background: m.status === 'MATCH' ? 'rgba(34, 197, 94, 0.15)' : m.status === 'ADJUSTED' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                                    color: m.status === 'MATCH' ? '#22c55e' : m.status === 'ADJUSTED' ? '#60a5fa' : '#ef4444'
+                                                }}>
+                                                    {m.status === 'MATCH' ? 'CONCILIADO (0 DIFF)' : m.status === 'ADJUSTED' ? 'AJUSTADO' : `DIFF: R$ ${m.divergence_cents.toFixed(2)}`}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}
