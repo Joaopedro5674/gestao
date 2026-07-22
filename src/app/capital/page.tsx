@@ -892,35 +892,121 @@ export default function CapitalPage() {
                                 </div>
                             </div>
 
-                            {/* BANCOS CADASTRAOS LISTA DE GESTÃO */}
+                            {/* BANCOS CADASTRADOS + PRODUTOS VINCULADOS */}
                             <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid var(--color-border)' }}>
                                 <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '14px' }}>🏦 Instituições Financeiras Cadastradas ({banks.length})</h4>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
-                                    {banks.map((b) => (
-                                        <div key={b.bank_id} style={{
-                                            padding: '12px 16px', background: 'var(--color-surface-2)', borderRadius: '10px',
-                                            border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: b.brand_color, display: 'inline-block' }} />
-                                                <strong style={{ fontSize: '0.95rem' }}>{b.bank_name}</strong>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                    {banks.map((b) => {
+                                        const bankProducts = allProductsList.filter((p: any) => p.bank_id === b.bank_id);
+                                        return (
+                                            <div key={b.bank_id} style={{
+                                                padding: '16px', background: 'var(--color-surface-2)', borderRadius: '12px',
+                                                border: `1px solid ${b.brand_color}33`, borderLeft: `4px solid ${b.brand_color}`
+                                            }}>
+                                                {/* Cabeçalho do Banco */}
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: bankProducts.length > 0 ? '14px' : '0' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                        <span style={{ width: '16px', height: '16px', borderRadius: '50%', background: b.brand_color, display: 'inline-block', boxShadow: `0 0 8px ${b.brand_color}66` }} />
+                                                        <strong style={{ fontSize: '1rem' }}>{b.bank_name}</strong>
+                                                        <span style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', background: 'var(--color-surface-1)', padding: '2px 6px', borderRadius: '6px' }}>
+                                                            {bankProducts.length} produto(s)
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                                        <button
+                                                            onClick={() => setEditingBank(b)}
+                                                            style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)', borderRadius: '6px', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                                                        >
+                                                            ✏️ Editar
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteBank(b.bank_id, b.bank_name)}
+                                                            style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '6px', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                                                        >
+                                                            🗑️ Excluir
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {/* Lista de Produtos do Banco */}
+                                                {bankProducts.length > 0 ? (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                        {bankProducts.map((p: any) => {
+                                                            const v = p.version;
+                                                            const hasTier = v?.tier_cap_limit && v.tier_cap_limit > 0;
+                                                            return (
+                                                                <div key={p.id} style={{
+                                                                    padding: '10px 14px', background: 'var(--color-surface-1)', borderRadius: '8px',
+                                                                    border: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px'
+                                                                }}>
+                                                                    <div>
+                                                                        <strong style={{ fontSize: '0.9rem' }}>{p.name}</strong>
+                                                                        <div style={{ display: 'flex', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
+                                                                            {v && (
+                                                                                <>
+                                                                                    <span style={{
+                                                                                        fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 700,
+                                                                                        background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.3)'
+                                                                                    }}>
+                                                                                        {v.indexer_percentage}% CDI
+                                                                                    </span>
+                                                                                    {hasTier && (
+                                                                                        <>
+                                                                                            <span style={{
+                                                                                                fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 700,
+                                                                                                background: 'rgba(234, 179, 8, 0.15)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.3)'
+                                                                                            }}>
+                                                                                                Teto: R$ {Number(v.tier_cap_limit).toLocaleString('pt-BR')}
+                                                                                            </span>
+                                                                                            <span style={{
+                                                                                                fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 700,
+                                                                                                background: 'rgba(156, 163, 175, 0.15)', color: '#9ca3af', border: '1px solid rgba(156, 163, 175, 0.3)'
+                                                                                            }}>
+                                                                                                Excedente: {v.tier_secondary_percentage || 100}% CDI
+                                                                                            </span>
+                                                                                        </>
+                                                                                    )}
+                                                                                    <span style={{
+                                                                                        fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 700,
+                                                                                        background: v.tax_rules_config?.is_exempt
+                                                                                            ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.1)',
+                                                                                        color: v.tax_rules_config?.is_exempt ? '#22c55e' : '#f87171',
+                                                                                        border: `1px solid ${v.tax_rules_config?.is_exempt ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.2)'}`
+                                                                                    }}>
+                                                                                        {v.tax_rules_config?.is_exempt ? 'Isento IOF/IR' : 'IOF + IR Regressivo'}
+                                                                                    </span>
+                                                                                </>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={async () => {
+                                                                            if (!confirm(`Excluir produto "${p.name}"?`)) return;
+                                                                            try {
+                                                                                const res = await fetch(`/api/capital/rules?id=${p.id}`, { method: 'DELETE' });
+                                                                                if (res.ok) fetchData();
+                                                                                else {
+                                                                                    const d = await res.json();
+                                                                                    alert(`Erro: ${d.error}`);
+                                                                                }
+                                                                            } catch (err) { console.error(err); }
+                                                                        }}
+                                                                        style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '6px', padding: '4px 8px', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}
+                                                                    >
+                                                                        🗑️
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)', margin: 0, fontStyle: 'italic' }}>
+                                                        Nenhum produto cadastrado para este banco. Cadastre acima.
+                                                    </p>
+                                                )}
                                             </div>
-                                            <div style={{ display: 'flex', gap: '6px' }}>
-                                                <button
-                                                    onClick={() => setEditingBank(b)}
-                                                    style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)', borderRadius: '6px', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
-                                                >
-                                                    ✏️ Editar
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteBank(b.bank_id, b.bank_name)}
-                                                    style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '6px', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
-                                                >
-                                                    🗑️ Excluir
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>

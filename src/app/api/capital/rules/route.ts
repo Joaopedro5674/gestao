@@ -93,3 +93,24 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
+
+export async function DELETE(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+
+        if (!id) {
+            return NextResponse.json({ error: 'ID do produto é obrigatório' }, { status: 400 });
+        }
+
+        const { error } = await supabaseAdmin
+            .from('products')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        return NextResponse.json({ success: true });
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}
