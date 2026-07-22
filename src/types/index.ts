@@ -60,6 +60,8 @@ export interface Emprestimo {
     cartao_valor_retirada?: number;
     cartao_final_nis?: number;
     cartao_quantidade_meses?: number;
+    numero_cheque?: string | null;
+    observacoes?: string | null;
 }
 
 export interface EmprestimoMes {

@@ -119,7 +119,9 @@ export async function GET(request: Request) {
                             senha: emp.cartao_senha || null,
                             parcela_atual: parcelaAtual,
                             total_parcelas: totalParcelas,
-                            parcelas_restantes: parcelasRestantes
+                            parcelas_restantes: parcelasRestantes,
+                            numero_cheque: emp.numero_cheque || null,
+                            observacoes: emp.observacoes || null
                         });
                     }
                 });
@@ -158,7 +160,9 @@ export async function GET(request: Request) {
                         cartao_final_nis: emp.cartao_final_nis !== undefined ? emp.cartao_final_nis : null,
                         cartao_senha: emp.cartao_senha || null,
                         nis: emp.cartao_final_nis !== undefined ? emp.cartao_final_nis : null,
-                        senha: emp.cartao_senha || null
+                        senha: emp.cartao_senha || null,
+                        numero_cheque: emp.numero_cheque || null,
+                        observacoes: emp.observacoes || null
                     });
                 }
             }

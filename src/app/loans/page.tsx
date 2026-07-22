@@ -284,7 +284,7 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
                         <div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--color-text-primary)' }}>
                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(emprestimo.valor_emprestado)}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <h3 style={{ textTransform: 'capitalize', margin: 0 }}>{emprestimo.cliente_nome}</h3>
                             {emprestimo.telefone && (
                                 <span style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -292,6 +292,16 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
                                 </span>
                             )}
                         </div>
+                        {emprestimo.numero_cheque && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--color-primary)', fontWeight: '600', marginTop: '2px' }}>
+                                📝 Cheque Nº {emprestimo.numero_cheque}
+                            </div>
+                        )}
+                        {emprestimo.observacoes && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                                💬 {emprestimo.observacoes}
+                            </div>
+                        )}
                     </div>
                     <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '0.85rem', color: 'var(--color-text-tertiary)', marginBottom: '2px' }}>Lucro Líquido</div>

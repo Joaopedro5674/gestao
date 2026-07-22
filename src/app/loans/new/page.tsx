@@ -22,7 +22,9 @@ function NewLoanPageContent() {
         interestRate: "",
         startDate: new Date().toISOString().split('T')[0],
         dueDate: "",
-        monthlyInterest: false
+        monthlyInterest: false,
+        checkNumber: "",
+        notes: ""
     });
 
     const [cartaoData, setCartaoData] = useState({
@@ -180,7 +182,9 @@ function NewLoanPageContent() {
                 cartao_senha: isCartao ? cartaoData.senha : undefined,
                 cartao_valor_retirada: isCartao ? parseFloat(cartaoData.valorRetirada.replace(/\./g, '').replace(',', '.')) : undefined,
                 cartao_final_nis: isCartao ? parseInt(cartaoData.finalNis, 10) : undefined,
-                cartao_quantidade_meses: isCartao ? parseInt(cartaoData.quantidadeMeses, 10) : undefined
+                cartao_quantidade_meses: isCartao ? parseInt(cartaoData.quantidadeMeses, 10) : undefined,
+                numero_cheque: !isCartao && formData.checkNumber ? formData.checkNumber.trim() : undefined,
+                observacoes: formData.notes ? formData.notes.trim() : undefined
             });
 
             router.push("/loans");
@@ -430,6 +434,30 @@ function NewLoanPageContent() {
                             style={isCartao ? { opacity: 0.8, cursor: 'not-allowed', background: 'var(--color-surface-2)' } : {}}
                         />
                     </div>
+                </div>
+
+                {!isCartao && (
+                    <div className="form-group">
+                        <label className="label">Número do Cheque (Opcional)</label>
+                        <input
+                            type="text"
+                            className="input"
+                            placeholder="Ex: 850082"
+                            value={formData.checkNumber}
+                            onChange={(e) => setFormData({ ...formData, checkNumber: e.target.value })}
+                        />
+                    </div>
+                )}
+
+                <div className="form-group">
+                    <label className="label">Observações / Notas (Opcional)</label>
+                    <input
+                        type="text"
+                        className="input"
+                        placeholder="Ex: Entregue via motoboy / Cartão de terceiros"
+                        value={formData.notes}
+                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    />
                 </div>
 
                 {/* Live Preview */}
