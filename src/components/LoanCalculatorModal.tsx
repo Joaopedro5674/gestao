@@ -1,26 +1,50 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Calculator, Info, Plus, Trash2, TrendingUp, Share2, Save, Check } from "lucide-react";
+import { X, Calculator, Info, Plus, Trash2, TrendingUp, Share2, Save, Check, CreditCard, DollarSign, Calendar, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/ToastProvider";
+import { calcularFinanceiroCartao, calcularVencimentoCartao, calcularVencimentoParcela } from "@/utils/loanHelpers";
 
-interface Simulacao {
+export type ModalidadeSimulacao = 'comum' | 'cartao';
+
+export interface ParcelaPrevista {
+    numero: number;
+    mesReferencia: string;
+    dataVencimento: string;
+    valor: number;
+    tipo: string;
+}
+
+export interface Simulacao {
     id: number;
+    tipo: ModalidadeSimulacao;
     nome: string;
+    // Comum fields
     valorInicial: string;
     taxaMensal: string;
     dataInicio: string;
     dataFim: string;
     cobrancaMensal: boolean;
+    // Cartão fields
+    senha: string;
+    valorRetirada: string;
+    quantidadeMeses: string;
+    finalNis: string;
+    // Extras
+    numeroCheque: string;
+    observacoes: string;
     salvo: boolean;
+    mostrarTabelaParcelas?: boolean;
 }
 
-interface SimulacaoResult {
+export interface SimulacaoResult {
     dias: number;
     jurosProporcional: number;
     valorTotal: number;
     isValid: boolean;
+    taxaEquivalente?: number;
+    parcelas: ParcelaPrevista[];
 }
 
 interface LoanCalculatorModalProps {
@@ -28,30 +52,114 @@ interface LoanCalculatorModalProps {
     onClose: () => void;
 }
 
-function calcularSimulacao(sim: Simulacao): SimulacaoResult {
-    const start = sim.dataInicio && sim.dataFim ? new Date(sim.dataInicio + 'T12:00:00') : null;
-    const end = sim.dataInicio && sim.dataFim ? new Date(sim.dataFim + 'T12:00:00') : null;
-    const v = parseFloat(sim.valorInicial.replace(/\./g, '').replace(',', '.'));
-    const t = parseFloat(sim.taxaMensal.replace(',', '.'));
+function calcularSimulacao(sim: Simulacao, nisCalendar: Record<number, number>): SimulacaoResult {
+    if (sim.tipo === 'cartao') {
+        const v = parseFloat(sim.valorInicial.replace(/\./g, '').replace(',', '.'));
+        const r = parseFloat(sim.valorRetirada.replace(/\./g, '').replace(',', '.'));
+        const m = parseInt(sim.quantidadeMeses, 10);
+        const nis = parseInt(sim.finalNis, 10);
 
-    let dias = 0;
-    let jurosProporcional = 0;
-    let valorTotal = 0;
-    let isValid = false;
-
-    if (start && end && !isNaN(v) && !isNaN(t)) {
-        const diffTime = end.getTime() - start.getTime();
-        dias = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-        if (dias >= 0 && v > 0 && t > 0) {
-            const jMensal = v * (t / 100);
-            jurosProporcional = jMensal * (dias / 30);
-            valorTotal = v + jurosProporcional;
-            isValid = true;
+        if (isNaN(v) || isNaN(r) || isNaN(m) || isNaN(nis) || v <= 0 || r <= 0 || m <= 0) {
+            return { dias: 0, jurosProporcional: 0, valorTotal: 0, isValid: false, parcelas: [] };
         }
-    }
 
-    return { dias, jurosProporcional, valorTotal, isValid };
+        const calc = calcularFinanceiroCartao(v, r, m);
+        const dataFimCalculada = calcularVencimentoCartao(sim.dataInicio, nis, m, nisCalendar);
+        
+        let dias = m * 30;
+        if (sim.dataInicio && dataFimCalculada) {
+            const start = new Date(sim.dataInicio + 'T12:00:00');
+            const end = new Date(dataFimCalculada + 'T12:00:00');
+            dias = Math.max(0, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+        }
+
+        // Tabela de Parcelas
+        const parcelas: ParcelaPrevista[] = [];
+        if (sim.dataInicio) {
+            const start = new Date(sim.dataInicio + 'T12:00:00');
+            const startYear = start.getFullYear();
+            const startMonth = start.getMonth() + 1;
+            const startDay = start.getDate();
+            const payDay = nisCalendar[nis] || 25;
+            const offsetMonth = startDay > payDay ? 1 : 0;
+
+            for (let i = 1; i <= m; i++) {
+                const targetYear = startYear + Math.floor((startMonth - 1 + i - 1 + offsetMonth) / 12);
+                const targetMonthNum = ((startMonth - 1 + i - 1 + offsetMonth) % 12) + 1;
+                const mesRef = `${targetYear}-${String(targetMonthNum).padStart(2, '0')}`;
+                
+                const dueObj = calcularVencimentoParcela(sim.dataInicio, mesRef, true, nis, nisCalendar);
+                const dueStr = dueObj.toLocaleDateString('pt-BR');
+
+                parcelas.push({
+                    numero: i,
+                    mesReferencia: mesRef,
+                    dataVencimento: dueStr,
+                    valor: r,
+                    tipo: 'Retirada Cartão'
+                });
+            }
+        }
+
+        return {
+            dias,
+            jurosProporcional: calc.interest,
+            valorTotal: calc.total,
+            taxaEquivalente: calc.rate,
+            isValid: true,
+            parcelas
+        };
+    } else {
+        // Modalidade COMUM
+        const start = sim.dataInicio && sim.dataFim ? new Date(sim.dataInicio + 'T12:00:00') : null;
+        const end = sim.dataInicio && sim.dataFim ? new Date(sim.dataFim + 'T12:00:00') : null;
+        const v = parseFloat(sim.valorInicial.replace(/\./g, '').replace(',', '.'));
+        const t = parseFloat(sim.taxaMensal.replace(',', '.'));
+
+        let dias = 0;
+        let jurosProporcional = 0;
+        let valorTotal = 0;
+        let isValid = false;
+        const parcelas: ParcelaPrevista[] = [];
+
+        if (start && end && !isNaN(v) && !isNaN(t)) {
+            const diffTime = end.getTime() - start.getTime();
+            dias = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (dias >= 0 && v > 0 && t > 0) {
+                const jMensal = v * (t / 100);
+                jurosProporcional = jMensal * (dias / 30);
+                valorTotal = v + jurosProporcional;
+                isValid = true;
+
+                // Tabela de parcelas se cobrancaMensal ativa
+                if (sim.cobrancaMensal) {
+                    const totalMonths = Math.max(1, Math.ceil(dias / 30));
+                    const startYear = start.getFullYear();
+                    const startMonth = start.getMonth() + 1;
+
+                    for (let i = 1; i <= totalMonths; i++) {
+                        const targetYear = startYear + Math.floor((startMonth - 1 + i - 1) / 12);
+                        const targetMonthNum = ((startMonth - 1 + i - 1) % 12) + 1;
+                        const mesRef = `${targetYear}-${String(targetMonthNum).padStart(2, '0')}`;
+                        
+                        const dueObj = calcularVencimentoParcela(sim.dataInicio, mesRef, false, null, nisCalendar);
+                        const dueStr = dueObj.toLocaleDateString('pt-BR');
+
+                        parcelas.push({
+                            numero: i,
+                            mesReferencia: mesRef,
+                            dataVencimento: dueStr,
+                            valor: jMensal,
+                            tipo: 'Juros Mensal'
+                        });
+                    }
+                }
+            }
+        }
+
+        return { dias, jurosProporcional, valorTotal, isValid, parcelas };
+    }
 }
 
 const formatBRL = (value: number) =>
@@ -64,41 +172,62 @@ const formatDateBR = (dateStr: string) => {
 
 let nextId = 1;
 
-function criarSimulacao(): Simulacao {
+function criarSimulacao(tipo: ModalidadeSimulacao = 'comum'): Simulacao {
     return {
         id: nextId++,
+        tipo,
         nome: "",
         valorInicial: "3.000,00",
         taxaMensal: "10",
         dataInicio: new Date().toISOString().split('T')[0],
         dataFim: "",
         cobrancaMensal: false,
+        senha: "",
+        valorRetirada: "450,00",
+        quantidadeMeses: "6",
+        finalNis: "0",
+        numeroCheque: "",
+        observacoes: "",
         salvo: false,
+        mostrarTabelaParcelas: false,
     };
 }
 
-function gerarTextoWhatsApp(simulacoes: Simulacao[]): string {
+function gerarTextoWhatsApp(simulacoes: Simulacao[], nisCalendar: Record<number, number>): string {
     const validSims = simulacoes
-        .map(s => ({ sim: s, result: calcularSimulacao(s) }))
+        .map(s => ({ sim: s, result: calcularSimulacao(s, nisCalendar) }))
         .filter(r => r.result.isValid);
 
     if (validSims.length === 0) return '';
 
-    let texto = '*Simulacao de Juros*\n\n';
+    let texto = '*Simulação de Empréstimos*\n\n';
 
     validSims.forEach((item, i) => {
         const { sim, result } = item;
-        const nome = sim.nome.trim() || `Simulacao ${i + 1}`;
+        const nome = sim.nome.trim() || `Simulação ${i + 1}`;
         const valor = parseFloat(sim.valorInicial.replace(/\./g, '').replace(',', '.'));
 
         texto += `-------------------\n`;
         texto += `> *${nome}*\n`;
-        texto += `Capital: ${formatBRL(valor)}\n`;
-        texto += `Taxa: ${sim.taxaMensal}% a.m.\n`;
-        texto += `Periodo: ${formatDateBR(sim.dataInicio)} a ${formatDateBR(sim.dataFim)}\n`;
-        texto += `Dias: ${result.dias}\n`;
-        texto += `Juros: ${formatBRL(result.jurosProporcional)}\n`;
-        texto += `*Total a Receber: ${formatBRL(result.valorTotal)}*\n\n`;
+        texto += `Modalidade: ${sim.tipo === 'cartao' ? '💳 Cartão Retirada' : '💵 Empréstimo Comum'}\n`;
+        
+        if (sim.tipo === 'cartao') {
+            const retirada = parseFloat(sim.valorRetirada.replace(/\./g, '').replace(',', '.'));
+            texto += `Capital Repassado: ${formatBRL(valor)}\n`;
+            texto += `Retirada Mensal: ${formatBRL(retirada)} x ${sim.quantidadeMeses} meses\n`;
+            texto += `NIS Final: ${sim.finalNis}\n`;
+            if (result.taxaEquivalente) texto += `Taxa Mensal Aprox: ${result.taxaEquivalente.toFixed(2)}% a.m.\n`;
+            texto += `Lucro Estimado: ${formatBRL(result.jurosProporcional)}\n`;
+            texto += `*Total Retirado: ${formatBRL(result.valorTotal)}*\n\n`;
+        } else {
+            texto += `Capital: ${formatBRL(valor)}\n`;
+            texto += `Taxa: ${sim.taxaMensal}% a.m.\n`;
+            texto += `Período: ${formatDateBR(sim.dataInicio)} a ${formatDateBR(sim.dataFim)}\n`;
+            texto += `Dias: ${result.dias}\n`;
+            if (sim.numeroCheque) texto += `Cheque: Nº ${sim.numeroCheque}\n`;
+            texto += `Juros: ${formatBRL(result.jurosProporcional)}\n`;
+            texto += `*Total a Receber: ${formatBRL(result.valorTotal)}*\n\n`;
+        }
     });
 
     if (validSims.length >= 2) {
@@ -110,21 +239,19 @@ function gerarTextoWhatsApp(simulacoes: Simulacao[]): string {
         const totalGeral = validSims.reduce((acc, r) => acc + r.result.valorTotal, 0);
 
         texto += `-------------------\n`;
-        texto += `*RESUMO TOTAL (${validSims.length} simulacoes)*\n`;
-        texto += `Capital: ${formatBRL(totalCapital)}\n`;
-        texto += `Juros: ${formatBRL(totalJuros)}\n`;
-        texto += `*Retorno: ${formatBRL(totalGeral)}*\n`;
+        texto += `*RESUMO TOTAL (${validSims.length} simulações)*\n`;
+        texto += `Capital Total: ${formatBRL(totalCapital)}\n`;
+        texto += `Lucro/Juros Total: ${formatBRL(totalJuros)}\n`;
+        texto += `*Retorno Total: ${formatBRL(totalGeral)}*\n`;
     }
-
-    texto += `\n_* Calculo baseado em mes comercial (30 dias)._`;
 
     return texto;
 }
 
-const STORAGE_KEY = 'simulador_juros_data';
+const STORAGE_KEY = 'simulador_juros_data_v2';
 
 function loadFromStorage(): Simulacao[] {
-    if (typeof window === 'undefined') return [criarSimulacao()];
+    if (typeof window === 'undefined') return [criarSimulacao('comum')];
     try {
         const saved = sessionStorage.getItem(STORAGE_KEY);
         if (saved) {
@@ -135,31 +262,30 @@ function loadFromStorage(): Simulacao[] {
             }
         }
     } catch { /* ignore */ }
-    return [criarSimulacao()];
+    return [criarSimulacao('comum')];
 }
 
 export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorModalProps) {
     const [simulacoes, setSimulacoes] = useState<Simulacao[]>(loadFromStorage);
     const [savingId, setSavingId] = useState<number | null>(null);
-    const { adicionarEmprestimo } = useApp();
+    const { adicionarEmprestimo, nisCalendar } = useApp();
     const { showToast } = useToast();
 
-    // Persist simulations to sessionStorage
     useEffect(() => {
         try {
             sessionStorage.setItem(STORAGE_KEY, JSON.stringify(simulacoes));
         } catch { /* ignore */ }
     }, [simulacoes]);
 
-    const addSimulacao = () => {
-        setSimulacoes(prev => [...prev, criarSimulacao()]);
+    const addSimulacao = (tipo: ModalidadeSimulacao = 'comum') => {
+        setSimulacoes(prev => [...prev, criarSimulacao(tipo)]);
     };
 
     const removeSimulacao = (id: number) => {
         setSimulacoes(prev => prev.filter(s => s.id !== id));
     };
 
-    const updateSimulacao = (id: number, field: keyof Simulacao, value: string) => {
+    const updateSimulacao = (id: number, field: keyof Simulacao, value: any) => {
         setSimulacoes(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
     };
 
@@ -192,14 +318,14 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
     };
 
     const compartilharWhatsApp = () => {
-        const texto = gerarTextoWhatsApp(simulacoes);
+        const texto = gerarTextoWhatsApp(simulacoes, nisCalendar);
         if (!texto) return;
         const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
         window.open(url, '_blank');
     };
 
     const salvarComoEmprestimo = async (sim: Simulacao) => {
-        const result = calcularSimulacao(sim);
+        const result = calcularSimulacao(sim, nisCalendar);
         if (!result.isValid) return;
 
         const nome = sim.nome.trim();
@@ -209,22 +335,52 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
         }
 
         const valor = parseFloat(sim.valorInicial.replace(/\./g, '').replace(',', '.'));
-        const taxa = parseFloat(sim.taxaMensal.replace(',', '.'));
 
         setSavingId(sim.id);
         try {
-            await adicionarEmprestimo({
-                cliente_nome: nome,
-                telefone: '',
-                valor_emprestado: valor,
-                juros_mensal: taxa,
-                dias_contratados: result.dias,
-                juros_total_contratado: result.jurosProporcional,
-                data_inicio: sim.dataInicio,
-                data_fim: sim.dataFim,
-                status: 'ativo',
-                cobranca_mensal: sim.cobrancaMensal,
-            });
+            if (sim.tipo === 'cartao') {
+                const retirada = parseFloat(sim.valorRetirada.replace(/\./g, '').replace(',', '.'));
+                const meses = parseInt(sim.quantidadeMeses, 10) || 1;
+                const nis = parseInt(sim.finalNis, 10);
+                const dataFimCartao = calcularVencimentoCartao(sim.dataInicio, nis, meses, nisCalendar);
+
+                await adicionarEmprestimo({
+                    cliente_nome: nome,
+                    telefone: '',
+                    valor_emprestado: valor,
+                    juros_mensal: result.taxaEquivalente || 0,
+                    dias_contratados: result.dias,
+                    juros_total_contratado: result.jurosProporcional,
+                    data_inicio: sim.dataInicio,
+                    data_fim: dataFimCartao,
+                    status: 'ativo',
+                    cobranca_mensal: true,
+                    tipo: 'cartao',
+                    cartao_senha: sim.senha,
+                    cartao_valor_retirada: retirada,
+                    cartao_final_nis: nis,
+                    cartao_quantidade_meses: meses,
+                    observacoes: sim.observacoes.trim() || undefined,
+                });
+            } else {
+                const taxa = parseFloat(sim.taxaMensal.replace(',', '.'));
+
+                await adicionarEmprestimo({
+                    cliente_nome: nome,
+                    telefone: '',
+                    valor_emprestado: valor,
+                    juros_mensal: taxa,
+                    dias_contratados: result.dias,
+                    juros_total_contratado: result.jurosProporcional,
+                    data_inicio: sim.dataInicio,
+                    data_fim: sim.dataFim,
+                    status: 'ativo',
+                    cobranca_mensal: sim.cobrancaMensal,
+                    tipo: 'comum',
+                    numero_cheque: sim.numeroCheque.trim() || undefined,
+                    observacoes: sim.observacoes.trim() || undefined,
+                });
+            }
 
             setSimulacoes(prev => prev.map(s => s.id === sim.id ? { ...s, salvo: true } : s));
             showToast(`Empréstimo de ${nome} salvo com sucesso!`, "success");
@@ -238,7 +394,7 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
 
     const salvarTodosValidos = async () => {
         const naoSalvos = simulacoes.filter(s => {
-            const r = calcularSimulacao(s);
+            const r = calcularSimulacao(s, nisCalendar);
             return r.isValid && !s.salvo && s.nome.trim();
         });
 
@@ -252,8 +408,7 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
         }
     };
 
-    // Calculate results for all simulations
-    const results = simulacoes.map(s => ({ sim: s, result: calcularSimulacao(s) }));
+    const results = simulacoes.map(s => ({ sim: s, result: calcularSimulacao(s, nisCalendar) }));
     const validResults = results.filter(r => r.result.isValid);
     const totalJuros = validResults.reduce((acc, r) => acc + r.result.jurosProporcional, 0);
     const totalCapital = validResults.reduce((acc, r) => {
@@ -269,46 +424,45 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
 
     return (
         <div style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000,
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
-            backdropFilter: 'blur(4px)'
+            backdropFilter: 'blur(6px)'
         }}>
             <div className="card" style={{
-                width: '100%', maxWidth: '520px', background: 'var(--color-surface-1)',
-                padding: '24px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
-                maxHeight: '90vh', overflowY: 'auto',
+                width: '100%', maxWidth: '580px', background: 'var(--color-surface-1)',
+                padding: '24px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.2)',
+                maxHeight: '90vh', overflowY: 'auto', borderRadius: 'var(--radius-lg)'
             }}>
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Calculator size={22} className="text-primary" />Simulador de Juros
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-primary)' }}>
+                        <Calculator size={24} style={{ color: 'var(--color-primary)' }} />Simulador de Juros & Cartões
                     </h3>
                     <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)' }}>
-                        <X size={20} />
+                        <X size={22} />
                     </button>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     {/* Simulation Cards */}
                     {simulacoes.map((sim, index) => {
-                        const result = calcularSimulacao(sim);
+                        const result = calcularSimulacao(sim, nisCalendar);
                         const isSaving = savingId === sim.id;
+                        const isCartao = sim.tipo === 'cartao';
+
                         return (
                             <div key={sim.id} style={{
-                                padding: '16px', background: 'var(--color-surface-2)',
+                                padding: '18px', background: 'var(--color-surface-2)',
                                 borderRadius: 'var(--radius-md)',
                                 border: sim.salvo ? '1px solid var(--color-success)' : '1px solid var(--color-border)',
                                 position: 'relative',
                                 opacity: sim.salvo ? 0.85 : 1,
                             }}>
-                                {/* Sim header */}
-                                <div style={{
-                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                    marginBottom: '12px',
-                                }}>
+                                {/* Sim Header */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <span style={{
-                                            fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase',
+                                            fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase',
                                             color: sim.salvo ? 'var(--color-success)' : 'var(--color-primary)', letterSpacing: '0.5px',
                                         }}>
                                             {sim.salvo ? (
@@ -325,8 +479,7 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
                                             onClick={() => removeSimulacao(sim.id)}
                                             style={{
                                                 background: 'none', border: 'none', cursor: 'pointer',
-                                                color: 'var(--color-danger)', padding: '4px',
-                                                display: 'flex', alignItems: 'center',
+                                                color: 'var(--color-danger)', padding: '4px', display: 'flex', alignItems: 'center',
                                             }}
                                             title="Remover simulação"
                                         >
@@ -335,134 +488,355 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
                                     )}
                                 </div>
 
-                                {/* Name field */}
-                                <div className="form-group" style={{ margin: '0 0 10px 0' }}>
-                                    <label className="label" style={{ fontSize: '0.7rem' }}>Nome / Identificação</label>
+                                {/* Modalidade Switcher */}
+                                <div style={{
+                                    display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px',
+                                    background: 'var(--color-surface-1)', padding: '4px', borderRadius: '8px',
+                                    marginBottom: '14px', border: '1px solid var(--color-border)'
+                                }}>
+                                    <button
+                                        type="button"
+                                        disabled={sim.salvo}
+                                        onClick={() => updateSimulacao(sim.id, 'tipo', 'comum')}
+                                        style={{
+                                            padding: '8px', borderRadius: '6px', border: 'none',
+                                            background: !isCartao ? 'var(--color-primary)' : 'transparent',
+                                            color: !isCartao ? 'white' : 'var(--color-text-secondary)',
+                                            fontWeight: '700', fontSize: '0.8rem', cursor: sim.salvo ? 'not-allowed' : 'pointer',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        <DollarSign size={14} /> Empréstimo Comum
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={sim.salvo}
+                                        onClick={() => updateSimulacao(sim.id, 'tipo', 'cartao')}
+                                        style={{
+                                            padding: '8px', borderRadius: '6px', border: 'none',
+                                            background: isCartao ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : 'transparent',
+                                            color: isCartao ? 'white' : 'var(--color-text-secondary)',
+                                            fontWeight: '700', fontSize: '0.8rem', cursor: sim.salvo ? 'not-allowed' : 'pointer',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        <CreditCard size={14} /> Cartão (Retirada)
+                                    </button>
+                                </div>
+
+                                {/* Name Field */}
+                                <div className="form-group" style={{ margin: '0 0 12px 0' }}>
+                                    <label className="label" style={{ fontSize: '0.75rem' }}>Nome / Identificação</label>
                                     <input
                                         type="text"
                                         className="input"
                                         value={sim.nome}
                                         onChange={(e) => updateSimulacao(sim.id, 'nome', e.target.value)}
-                                        placeholder={`Ex: João, Empréstimo Casa...`}
+                                        placeholder="Ex: Maria Silva"
                                         style={{ fontSize: '0.9rem' }}
                                         disabled={sim.salvo}
                                     />
                                 </div>
 
-                                {/* Input fields */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                                    <div className="form-group" style={{ margin: 0 }}>
-                                        <label className="label" style={{ fontSize: '0.7rem' }}>Valor (R$)</label>
-                                        <input
-                                            type="text"
-                                            className="input"
-                                            value={sim.valorInicial}
-                                            onChange={(e) => updateSimulacao(sim.id, 'valorInicial', formatValorInput(e.target.value))}
-                                            onBlur={() => updateSimulacao(sim.id, 'valorInicial', formatValorBlur(sim.valorInicial))}
-                                            placeholder="0,00"
-                                            style={{ fontSize: '0.9rem' }}
-                                            disabled={sim.salvo}
-                                        />
+                                {/* DYNAMIC INPUT FIELDS */}
+                                {isCartao ? (
+                                    /* CARTÃO FIELDS */
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                        <div className="form-group" style={{ margin: 0 }}>
+                                            <label className="label" style={{ fontSize: '0.7rem' }}>Capital Repassado (R$)</label>
+                                            <input
+                                                type="text"
+                                                className="input"
+                                                value={sim.valorInicial}
+                                                onChange={(e) => updateSimulacao(sim.id, 'valorInicial', formatValorInput(e.target.value))}
+                                                onBlur={() => updateSimulacao(sim.id, 'valorInicial', formatValorBlur(sim.valorInicial))}
+                                                placeholder="3.000,00"
+                                                style={{ fontSize: '0.9rem' }}
+                                                disabled={sim.salvo}
+                                            />
+                                        </div>
+                                        <div className="form-group" style={{ margin: 0 }}>
+                                            <label className="label" style={{ fontSize: '0.7rem' }}>Retirada Mensal (R$)</label>
+                                            <input
+                                                type="text"
+                                                className="input"
+                                                value={sim.valorRetirada}
+                                                onChange={(e) => updateSimulacao(sim.id, 'valorRetirada', formatValorInput(e.target.value))}
+                                                onBlur={() => updateSimulacao(sim.id, 'valorRetirada', formatValorBlur(sim.valorRetirada))}
+                                                placeholder="450,00"
+                                                style={{ fontSize: '0.9rem' }}
+                                                disabled={sim.salvo}
+                                            />
+                                        </div>
+                                        <div className="form-group" style={{ margin: 0 }}>
+                                            <label className="label" style={{ fontSize: '0.7rem' }}>Final do NIS</label>
+                                            <select
+                                                className="input"
+                                                value={sim.finalNis}
+                                                onChange={(e) => updateSimulacao(sim.id, 'finalNis', e.target.value)}
+                                                disabled={sim.salvo}
+                                                style={{ fontSize: '0.85rem', padding: '0 8px', height: '42px' }}
+                                            >
+                                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map(nis => (
+                                                    <option key={nis} value={nis}>
+                                                        NIS {nis} (Dia {nisCalendar[nis] || 25})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="form-group" style={{ margin: 0 }}>
+                                            <label className="label" style={{ fontSize: '0.7rem' }}>Quantidade de Meses</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                className="input"
+                                                value={sim.quantidadeMeses}
+                                                onChange={e => updateSimulacao(sim.id, 'quantidadeMeses', e.target.value)}
+                                                placeholder="6"
+                                                style={{ fontSize: '0.9rem' }}
+                                                disabled={sim.salvo}
+                                            />
+                                        </div>
+                                        <div className="form-group" style={{ margin: 0 }}>
+                                            <label className="label" style={{ fontSize: '0.7rem' }}>Data de Início</label>
+                                            <input
+                                                type="date"
+                                                className="input"
+                                                value={sim.dataInicio}
+                                                onChange={e => updateSimulacao(sim.id, 'dataInicio', e.target.value)}
+                                                style={{ fontSize: '0.85rem' }}
+                                                disabled={sim.salvo}
+                                            />
+                                        </div>
+                                        <div className="form-group" style={{ margin: 0 }}>
+                                            <label className="label" style={{ fontSize: '0.7rem' }}>Senha do Cartão (Opcional)</label>
+                                            <input
+                                                type="text"
+                                                className="input"
+                                                value={sim.senha}
+                                                onChange={e => updateSimulacao(sim.id, 'senha', e.target.value)}
+                                                placeholder="Ex: 1234"
+                                                style={{ fontSize: '0.85rem' }}
+                                                disabled={sim.salvo}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="form-group" style={{ margin: 0 }}>
-                                        <label className="label" style={{ fontSize: '0.7rem' }}>Taxa Mensal (%)</label>
-                                        <input
-                                            type="number"
-                                            className="input"
-                                            value={sim.taxaMensal}
-                                            onChange={e => updateSimulacao(sim.id, 'taxaMensal', e.target.value)}
-                                            placeholder="0.0"
-                                            step="0.01"
-                                            style={{ fontSize: '0.9rem' }}
-                                            disabled={sim.salvo}
-                                        />
+                                ) : (
+                                    /* COMUM FIELDS */
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                        <div className="form-group" style={{ margin: 0 }}>
+                                            <label className="label" style={{ fontSize: '0.7rem' }}>Valor (R$)</label>
+                                            <input
+                                                type="text"
+                                                className="input"
+                                                value={sim.valorInicial}
+                                                onChange={(e) => updateSimulacao(sim.id, 'valorInicial', formatValorInput(e.target.value))}
+                                                onBlur={() => updateSimulacao(sim.id, 'valorInicial', formatValorBlur(sim.valorInicial))}
+                                                placeholder="0,00"
+                                                style={{ fontSize: '0.9rem' }}
+                                                disabled={sim.salvo}
+                                            />
+                                        </div>
+                                        <div className="form-group" style={{ margin: 0 }}>
+                                            <label className="label" style={{ fontSize: '0.7rem' }}>Taxa Mensal (%)</label>
+                                            <input
+                                                type="number"
+                                                className="input"
+                                                value={sim.taxaMensal}
+                                                onChange={e => updateSimulacao(sim.id, 'taxaMensal', e.target.value)}
+                                                placeholder="0.0"
+                                                step="0.01"
+                                                style={{ fontSize: '0.9rem' }}
+                                                disabled={sim.salvo}
+                                            />
+                                        </div>
+                                        <div className="form-group" style={{ margin: 0 }}>
+                                            <label className="label" style={{ fontSize: '0.7rem' }}>Data Início</label>
+                                            <input
+                                                type="date"
+                                                className="input"
+                                                value={sim.dataInicio}
+                                                onChange={e => updateSimulacao(sim.id, 'dataInicio', e.target.value)}
+                                                style={{ fontSize: '0.85rem' }}
+                                                disabled={sim.salvo}
+                                            />
+                                        </div>
+                                        <div className="form-group" style={{ margin: 0 }}>
+                                            <label className="label" style={{ fontSize: '0.7rem' }}>Data Fim</label>
+                                            <input
+                                                type="date"
+                                                className="input"
+                                                value={sim.dataFim}
+                                                onChange={e => updateSimulacao(sim.id, 'dataFim', e.target.value)}
+                                                style={{ fontSize: '0.85rem' }}
+                                                disabled={sim.salvo}
+                                            />
+                                        </div>
+                                        <div className="form-group" style={{ margin: 0, gridColumn: 'span 2' }}>
+                                            <label className="label" style={{ fontSize: '0.7rem' }}>Número do Cheque (Opcional)</label>
+                                            <input
+                                                type="text"
+                                                className="input"
+                                                value={sim.numeroCheque}
+                                                onChange={e => updateSimulacao(sim.id, 'numeroCheque', e.target.value)}
+                                                placeholder="Ex: 850082"
+                                                style={{ fontSize: '0.85rem' }}
+                                                disabled={sim.salvo}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="form-group" style={{ margin: 0 }}>
-                                        <label className="label" style={{ fontSize: '0.7rem' }}>Data Início</label>
-                                        <input
-                                            type="date"
-                                            className="input"
-                                            value={sim.dataInicio}
-                                            onChange={e => updateSimulacao(sim.id, 'dataInicio', e.target.value)}
-                                            style={{ fontSize: '0.85rem' }}
-                                            disabled={sim.salvo}
-                                        />
-                                    </div>
-                                    <div className="form-group" style={{ margin: 0 }}>
-                                        <label className="label" style={{ fontSize: '0.7rem' }}>Data Fim</label>
-                                        <input
-                                            type="date"
-                                            className="input"
-                                            value={sim.dataFim}
-                                            onChange={e => updateSimulacao(sim.id, 'dataFim', e.target.value)}
-                                            style={{ fontSize: '0.85rem' }}
-                                            disabled={sim.salvo}
-                                        />
-                                    </div>
+                                )}
+
+                                {/* Observações livre */}
+                                <div className="form-group" style={{ margin: '10px 0 0 0' }}>
+                                    <input
+                                        type="text"
+                                        className="input"
+                                        value={sim.observacoes}
+                                        onChange={e => updateSimulacao(sim.id, 'observacoes', e.target.value)}
+                                        placeholder="Observações (Opcional)"
+                                        style={{ fontSize: '0.8rem' }}
+                                        disabled={sim.salvo}
+                                    />
                                 </div>
 
-                                {/* Monthly interest toggle */}
-                                <div
-                                    onClick={() => !sim.salvo && setSimulacoes(prev => prev.map(s => s.id === sim.id ? { ...s, cobrancaMensal: !s.cobrancaMensal } : s))}
-                                    style={{
-                                        display: 'flex', alignItems: 'center', gap: '10px',
-                                        background: 'var(--color-surface-1)', padding: '10px 12px',
-                                        borderRadius: '8px', marginTop: '10px',
-                                        border: sim.cobrancaMensal ? '1px solid var(--color-primary)' : '1px solid transparent',
-                                        cursor: sim.salvo ? 'not-allowed' : 'pointer', userSelect: 'none' as const,
-                                        opacity: sim.salvo ? 0.6 : 1,
-                                    }}
-                                >
-                                    <div style={{
-                                        width: '36px', height: '20px',
-                                        background: sim.cobrancaMensal ? 'var(--color-primary)' : '#555',
-                                        borderRadius: '20px', position: 'relative' as const,
-                                        transition: 'background 0.2s', flexShrink: 0,
-                                    }}>
+                                {/* Monthly Interest Toggle (only for Comum) */}
+                                {!isCartao && (
+                                    <div
+                                        onClick={() => !sim.salvo && updateSimulacao(sim.id, 'cobrancaMensal', !sim.cobrancaMensal)}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: '10px',
+                                            background: 'var(--color-surface-1)', padding: '10px 12px',
+                                            borderRadius: '8px', marginTop: '10px',
+                                            border: sim.cobrancaMensal ? '1px solid var(--color-primary)' : '1px solid transparent',
+                                            cursor: sim.salvo ? 'not-allowed' : 'pointer', userSelect: 'none',
+                                            opacity: sim.salvo ? 0.6 : 1,
+                                        }}
+                                    >
                                         <div style={{
-                                            width: '16px', height: '16px', background: '#fff',
-                                            borderRadius: '50%', position: 'absolute' as const,
-                                            top: '2px', left: sim.cobrancaMensal ? '18px' : '2px',
-                                            transition: 'left 0.2s',
-                                        }} />
+                                            width: '36px', height: '20px',
+                                            background: sim.cobrancaMensal ? 'var(--color-primary)' : '#555',
+                                            borderRadius: '20px', position: 'relative',
+                                            transition: 'background 0.2s', flexShrink: 0,
+                                        }}>
+                                            <div style={{
+                                                width: '16px', height: '16px', background: '#fff',
+                                                borderRadius: '50%', position: 'absolute',
+                                                top: '2px', left: sim.cobrancaMensal ? '18px' : '2px',
+                                                transition: 'left 0.2s',
+                                            }} />
+                                        </div>
+                                        <div>
+                                            <span style={{ display: 'block', fontWeight: 500, fontSize: '0.8rem' }}>Cobrança mensal</span>
+                                            <span style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)' }}>
+                                                {sim.cobrancaMensal ? 'Juros cobrados mensalmente' : 'Juros acumulam para o final'}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <span style={{ display: 'block', fontWeight: 500, fontSize: '0.8rem' }}>Cobrança mensal</span>
-                                        <span style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)' }}>
-                                            {sim.cobrancaMensal ? 'Juros cobrados mensalmente' : 'Juros acumulam para o final'}
-                                        </span>
-                                    </div>
-                                </div>
+                                )}
 
-                                {/* Individual Result */}
+                                {/* INDIVIDUAL RESULT DISPLAY */}
                                 {result.isValid && (
                                     <div style={{
-                                        marginTop: '12px', paddingTop: '12px',
+                                        marginTop: '14px', paddingTop: '12px',
                                         borderTop: '1px solid var(--color-border)',
                                     }}>
                                         <div style={{
-                                            display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px',
-                                            marginBottom: !sim.salvo ? '12px' : '0',
+                                            display: 'grid', gridTemplateColumns: isCartao ? '1fr 1fr 1fr' : '1fr 1fr 1fr', gap: '8px',
+                                            marginBottom: '12px',
                                         }}>
                                             <div style={{ textAlign: 'center' }}>
-                                                <div style={{ fontSize: '0.65rem', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', marginBottom: '2px' }}>Dias</div>
-                                                <div style={{ fontWeight: '700', fontSize: '0.9rem' }}>{result.dias}</div>
+                                                <div style={{ fontSize: '0.65rem', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', marginBottom: '2px' }}>
+                                                    {isCartao ? 'Prazo / NIS' : 'Dias'}
+                                                </div>
+                                                <div style={{ fontWeight: '700', fontSize: '0.85rem' }}>
+                                                    {isCartao ? `${sim.quantidadeMeses}m (Dia ${nisCalendar[parseInt(sim.finalNis)] || 25})` : `${result.dias} dias`}
+                                                </div>
                                             </div>
                                             <div style={{ textAlign: 'center' }}>
-                                                <div style={{ fontSize: '0.65rem', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', marginBottom: '2px' }}>Juros</div>
-                                                <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--color-success)' }}>
+                                                <div style={{ fontSize: '0.65rem', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', marginBottom: '2px' }}>
+                                                    {isCartao ? 'Lucro Estimado' : 'Juros'}
+                                                </div>
+                                                <div style={{ fontWeight: '700', fontSize: '0.85rem', color: 'var(--color-success)' }}>
                                                     {formatBRL(result.jurosProporcional)}
                                                 </div>
                                             </div>
                                             <div style={{ textAlign: 'center' }}>
-                                                <div style={{ fontSize: '0.65rem', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', marginBottom: '2px' }}>Total</div>
-                                                <div style={{ fontWeight: '700', fontSize: '0.9rem' }}>
+                                                <div style={{ fontSize: '0.65rem', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', marginBottom: '2px' }}>
+                                                    {isCartao ? 'Total Retirado' : 'Total'}
+                                                </div>
+                                                <div style={{ fontWeight: '700', fontSize: '0.85rem', color: 'var(--color-text-primary)' }}>
                                                     {formatBRL(result.valorTotal)}
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {/* Save as loan button */}
+                                        {isCartao && result.taxaEquivalente !== undefined && (
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--color-primary)', textAlign: 'center', fontWeight: '600', marginBottom: '10px' }}>
+                                                Taxa Mensal Equivalente: {result.taxaEquivalente.toFixed(2)}% a.m.
+                                            </div>
+                                        )}
+
+                                        {/* TABELA DE PARCELAS PREVISTAS (EXPANDÁVEL) */}
+                                        {result.parcelas.length > 0 && (
+                                            <div style={{ marginBottom: '12px' }}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateSimulacao(sim.id, 'mostrarTabelaParcelas', !sim.mostrarTabelaParcelas)}
+                                                    style={{
+                                                        width: '100%', background: 'var(--color-surface-1)',
+                                                        border: '1px solid var(--color-border)', borderRadius: '6px',
+                                                        padding: '8px 12px', fontSize: '0.75rem', fontWeight: '700',
+                                                        color: 'var(--color-text-primary)', cursor: 'pointer',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                                                    }}
+                                                >
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <FileText size={14} color="var(--color-primary)" />
+                                                        Tabela de Parcelas Previstas ({result.parcelas.length})
+                                                    </span>
+                                                    {sim.mostrarTabelaParcelas ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                                </button>
+
+                                                {sim.mostrarTabelaParcelas && (
+                                                    <div style={{
+                                                        marginTop: '8px', background: 'var(--color-surface-1)',
+                                                        borderRadius: '6px', border: '1px solid var(--color-border)',
+                                                        overflow: 'hidden', fontSize: '0.75rem'
+                                                    }}>
+                                                        <div style={{
+                                                            display: 'grid', gridTemplateColumns: '40px 1fr 1fr 1fr',
+                                                            background: 'var(--color-surface-2)', padding: '6px 10px',
+                                                            fontWeight: '700', color: 'var(--color-text-secondary)',
+                                                            borderBottom: '1px solid var(--color-border)'
+                                                        }}>
+                                                            <span>#</span>
+                                                            <span>Mês Ref.</span>
+                                                            <span>Vencimento</span>
+                                                            <span style={{ textAlign: 'right' }}>Valor</span>
+                                                        </div>
+                                                        <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                                                            {result.parcelas.map(p => (
+                                                                <div key={p.numero} style={{
+                                                                    display: 'grid', gridTemplateColumns: '40px 1fr 1fr 1fr',
+                                                                    padding: '6px 10px', borderBottom: '1px solid var(--color-border)',
+                                                                    alignItems: 'center'
+                                                                }}>
+                                                                    <span style={{ fontWeight: '700', color: 'var(--color-primary)' }}>P{p.numero}</span>
+                                                                    <span>{p.mesReferencia}</span>
+                                                                    <span>{p.dataVencimento}</span>
+                                                                    <span style={{ textAlign: 'right', fontWeight: '700' }}>{formatBRL(p.valor)}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Save as Loan button */}
                                         {!sim.salvo && (
                                             <button
                                                 onClick={() => salvarComoEmprestimo(sim)}
@@ -470,50 +844,64 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
                                                 className="btn"
                                                 style={{
                                                     width: '100%',
-                                                    background: sim.nome.trim() ? 'var(--color-primary)' : 'var(--color-surface-1)',
+                                                    background: sim.nome.trim() ? (isCartao ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : 'var(--color-primary)') : 'var(--color-surface-1)',
                                                     color: sim.nome.trim() ? 'white' : 'var(--color-text-tertiary)',
                                                     border: sim.nome.trim() ? 'none' : '1px solid var(--color-border)',
                                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                                                    padding: '8px', fontSize: '0.8rem', fontWeight: '600',
+                                                    padding: '10px', fontSize: '0.8rem', fontWeight: '700',
                                                     cursor: sim.nome.trim() ? 'pointer' : 'not-allowed',
-                                                    opacity: isSaving ? 0.7 : 1,
+                                                    opacity: isSaving ? 0.7 : 1, borderRadius: '8px'
                                                 }}
                                                 title={!sim.nome.trim() ? "Preencha o nome para salvar" : ""}
                                             >
-                                                <Save size={14} />
-                                                {isSaving ? 'Salvando...' : !sim.nome.trim() ? 'Preencha o nome para salvar' : 'Salvar como Empréstimo'}
+                                                <Save size={16} />
+                                                {isSaving ? 'Salvando...' : !sim.nome.trim() ? 'Preencha o nome para salvar' : `Salvar como ${isCartao ? 'Cartão' : 'Empréstimo'}`}
                                             </button>
                                         )}
                                     </div>
                                 )}
 
-                                {!result.isValid && sim.dataFim === "" && (
+                                {!result.isValid && (
                                     <div style={{
                                         marginTop: '10px', textAlign: 'center', color: 'var(--color-text-tertiary)',
                                         fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center',
                                     }}>
-                                        <Info size={12} /> Preencha a data fim para calcular
+                                        <Info size={12} /> {isCartao ? 'Preencha os valores e NIS para calcular' : 'Preencha a data fim para calcular'}
                                     </div>
                                 )}
                             </div>
                         );
                     })}
 
-                    {/* Add simulation button */}
-                    <button
-                        onClick={addSimulacao}
-                        className="btn"
-                        style={{
-                            background: 'var(--color-surface-2)', border: '1px dashed var(--color-border)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                            padding: '12px', fontSize: '0.85rem', color: 'var(--color-primary)',
-                            cursor: 'pointer', width: '100%', fontWeight: '600',
-                        }}
-                    >
-                        <Plus size={18} /> Adicionar Simulação
-                    </button>
+                    {/* Add simulation buttons */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                        <button
+                            onClick={() => addSimulacao('comum')}
+                            className="btn"
+                            style={{
+                                background: 'var(--color-surface-2)', border: '1px dashed var(--color-border)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                padding: '10px', fontSize: '0.8rem', color: 'var(--color-primary)',
+                                cursor: 'pointer', fontWeight: '700', borderRadius: '8px'
+                            }}
+                        >
+                            <Plus size={16} /> + Simulação Comum
+                        </button>
+                        <button
+                            onClick={() => addSimulacao('cartao')}
+                            className="btn"
+                            style={{
+                                background: 'var(--color-surface-2)', border: '1px dashed var(--color-border)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                padding: '10px', fontSize: '0.8rem', color: '#6366f1',
+                                cursor: 'pointer', fontWeight: '700', borderRadius: '8px'
+                            }}
+                        >
+                            <Plus size={16} /> + Simulação Cartão
+                        </button>
+                    </div>
 
-                    {/* Combined Summary (only when 2+ valid) */}
+                    {/* Combined Summary */}
                     {validResults.length >= 2 && (
                         <div style={{
                             padding: '16px', borderRadius: 'var(--radius-md)',
@@ -525,29 +913,28 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
                                 color: 'var(--color-primary)', marginBottom: '12px',
                                 display: 'flex', alignItems: 'center', gap: '6px',
                             }}>
-                                <TrendingUp size={16} /> Resumo Total ({validResults.length} simulações)
+                                <TrendingUp size={16} /> Resumo Geral Consolidado ({validResults.length} simulações)
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                                    <span style={{ color: 'var(--color-text-secondary)' }}>Capital Total:</span>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Capital Total Investido:</span>
                                     <span style={{ fontWeight: '700' }}>{formatBRL(totalCapital)}</span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                                    <span style={{ color: 'var(--color-text-secondary)' }}>Juros Total:</span>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Lucro Total Estimado:</span>
                                     <span style={{ fontWeight: '700', color: 'var(--color-success)' }}>{formatBRL(totalJuros)}</span>
                                 </div>
                                 <div style={{
                                     paddingTop: '8px', marginTop: '4px', borderTop: '1px solid var(--color-border)',
                                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                 }}>
-                                    <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>Retorno Total:</span>
+                                    <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>Retorno Total Bruto:</span>
                                     <span style={{ fontWeight: '800', fontSize: '1.2rem', color: 'var(--color-text-primary)' }}>
                                         {formatBRL(totalGeral)}
                                     </span>
                                 </div>
                             </div>
 
-                            {/* Save all button */}
                             {unsavedValidCount >= 2 && (
                                 <button
                                     onClick={salvarTodosValidos}
@@ -556,20 +943,20 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
                                         width: '100%', marginTop: '12px',
                                         background: 'var(--color-primary)', color: 'white', border: 'none',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                                        padding: '10px', fontSize: '0.85rem', fontWeight: '600',
+                                        padding: '10px', fontSize: '0.85rem', fontWeight: '700', borderRadius: '8px'
                                     }}
                                 >
-                                    <Save size={16} /> Salvar Todos como Empréstimos ({unsavedValidCount})
+                                    <Save size={16} /> Salvar Todas as Simulações ({unsavedValidCount})
                                 </button>
                             )}
                         </div>
                     )}
 
                     <div style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', textAlign: 'center', fontStyle: 'italic' }}>
-                        * Cálculo baseado em mês comercial (30 dias).
+                        * Cálculos de cartão utilizam a regra oficial de vencimento NIS do Supabase.
                     </div>
 
-                    {/* Action buttons */}
+                    {/* Action Buttons */}
                     <div style={{ display: 'grid', gridTemplateColumns: hasValidResults ? '1fr 1fr' : '1fr', gap: '8px' }}>
                         {hasValidResults && (
                             <button
@@ -578,13 +965,13 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
                                 style={{
                                     background: '#25D366', color: 'white', border: 'none',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                                    padding: '0.75rem', fontWeight: '600', fontSize: '0.85rem',
+                                    padding: '0.75rem', fontWeight: '700', fontSize: '0.85rem', borderRadius: '8px'
                                 }}
                             >
-                                <Share2 size={16} /> WhatsApp
+                                <Share2 size={16} /> Compartilhar WhatsApp
                             </button>
                         )}
-                        <button onClick={onClose} className="btn btn-full" style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
+                        <button onClick={onClose} className="btn btn-full" style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
                             Fechar
                         </button>
                     </div>
@@ -593,3 +980,4 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
         </div>
     );
 }
+
