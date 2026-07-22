@@ -74,7 +74,7 @@ export default function CapitalPage() {
     const [aporteForm, setAporteForm] = useState({
         bankId: '',
         productId: '',
-        productRuleVersionId: '55555555-5555-5555-5555-555555555555',
+        productRuleVersionId: '',
         amount: '',
         date: new Date().toISOString().split('T')[0],
         notes: ''
@@ -278,7 +278,7 @@ export default function CapitalPage() {
 
             if (res.ok) {
                 setIsAporteModalOpen(false);
-                setAporteForm({ bankId: '', productId: '', productRuleVersionId: '55555555-5555-5555-5555-555555555555', amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
+                setAporteForm({ bankId: '', productId: '', productRuleVersionId: '', amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
                 fetchData();
             }
         } catch (err) {
@@ -888,14 +888,20 @@ export default function CapitalPage() {
                                     className="input"
                                     value={aporteForm.productRuleVersionId}
                                     onChange={(e) => setAporteForm({ ...aporteForm, productRuleVersionId: e.target.value })}
+                                    required
                                 >
-                                    <option value="55555555-5555-5555-5555-555555555555">Nubank — Caixinha 100% CDI</option>
-                                    <option value="66666666-6666-6666-6666-666666666666">Mercado Pago — Conta 105% CDI</option>
-                                    {allProductsList.filter(p => p.version).map(p => (
-                                        <option key={p.version.id} value={p.version.id}>
-                                            {p.bank?.name || 'Banco'} — {p.name} ({p.version?.indexer_percentage}% CDI)
-                                        </option>
-                                    ))}
+                                    {allProductsList.filter(p => p.version).length === 0 ? (
+                                        <option value="">Nenhum produto cadastrado (Cadastre em Regras & Produtos)</option>
+                                    ) : (
+                                        <>
+                                            <option value="">Selecione o produto / banco</option>
+                                            {allProductsList.filter(p => p.version).map(p => (
+                                                <option key={p.version.id} value={p.version.id}>
+                                                    {p.bank?.name || 'Banco'} — {p.name} ({p.version?.indexer_percentage}% CDI)
+                                                </option>
+                                            ))}
+                                        </>
+                                    )}
                                 </select>
                             </div>
                             <div className="form-group">
