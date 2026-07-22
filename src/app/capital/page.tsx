@@ -209,7 +209,7 @@ export default function CapitalPage() {
 
             if (res.ok) {
                 setIsAporteModalOpen(false);
-                setAporteForm({ bankId: '', productId: 'NUBANK_CAIXINHA_100CDI', amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
+                setAporteForm({ bankId: '', productId: '', productRuleVersionId: '55555555-5555-5555-5555-555555555555', amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
                 fetchData();
             }
         } catch (err) {
