@@ -27,6 +27,7 @@ export async function GET(request: Request) {
         const { data: banks } = await supabaseAdmin.from('banks').select('*').eq('active', true);
         const { data: products } = await supabaseAdmin.from('products').select('*').eq('active', true);
         const { data: ruleVersions } = await supabaseAdmin.from('product_rule_versions').select('*, tax_rules_config(*)');
+        const { data: holidays } = await supabaseAdmin.from('holidays').select('holiday_date');
         const defaultAnbimaHolidays = [
             '2026-01-01', '2026-02-16', '2026-02-17', '2026-04-03', '2026-04-21',
             '2026-05-01', '2026-06-04', '2026-09-07', '2026-10-12', '2026-11-02',
