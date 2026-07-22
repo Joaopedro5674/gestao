@@ -305,6 +305,18 @@ export default function CapitalPage() {
                     >
                         <History size={16} /> Máquina do Tempo (Replay)
                     </button>
+                    <button
+                        onClick={() => setActiveTab('regras')}
+                        style={{
+                            padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer',
+                            fontWeight: 700, fontSize: '0.9rem',
+                            color: activeTab === 'regras' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                            borderBottom: activeTab === 'regras' ? '2px solid var(--color-primary)' : '2px solid transparent',
+                            display: 'flex', alignItems: 'center', gap: '6px'
+                        }}
+                    >
+                        <Settings size={16} /> Regras & Produtos
+                    </button>
                 </div>
 
                 {/* ABA 1: LOTES INDEPENDENTES */}
@@ -429,6 +441,37 @@ export default function CapitalPage() {
                                 value={replayDate}
                                 onChange={(e) => setReplayDate(e.target.value)}
                             />
+                        </div>
+                    </div>
+                )}
+
+                {/* ABA 4: GERENCIADOR DE REGRAS & PRODUTOS */}
+                {activeTab === 'regras' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <div className="card" style={{ padding: '24px' }}>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '12px' }}>⚙️ Configuração do Rule Engine</h3>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
+                                O Core Banking permite configurar regras de rendimento por faixas para produtos como a <strong>Caixinha Turbo do Nubank</strong> ou <strong>Mercado Pago 120% até R$ 10.000,00</strong>.
+                            </p>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                                <div style={{ background: 'var(--color-surface-2)', padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+                                    <h4 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: '8px', color: '#820ad1' }}>🔮 Faixas de Rendimento (Tiered Rates)</h4>
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)', margin: 0 }}>
+                                        Quando você tem um saldo (ex: R$ 55.000,00):<br/>
+                                        • <strong>Até R$ 10.000,00:</strong> Rende 120% do CDI.<br/>
+                                        • <strong>Excedente (R$ 45.000,00):</strong> Rende 100% do CDI.<br/>
+                                        O motor calcula automaticamente essa divisão sem misturar lotes.
+                                    </p>
+                                </div>
+
+                                <div style={{ background: 'var(--color-surface-2)', padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+                                    <h4 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: '8px', color: '#009ee3' }}>📈 Atualização Automática do CDI</h4>
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)', margin: 0 }}>
+                                        A taxa do CDI é sincronizada diariamente via API oficial do <strong>Banco Central do Brasil (SGS 12)</strong>. Taxa vigente atual: <strong>{cdiRate.toFixed(2)}% a.a.</strong>
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}

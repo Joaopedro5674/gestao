@@ -33,8 +33,24 @@ export class RuleEngine {
 
         const principal = Number(lot.initial_principal);
 
+        const tierCapLimit = ruleVersion?.tier_cap_limit;
+        const tierSecondaryPerc = ruleVersion?.tier_secondary_percentage ?? 100;
+
+        // Helper to compound balance with optional tiered rate (ex: 120% até 10k e 100% no excedente)
+        const calculateGross = (p: number, bDays: number): number => {
+            if (tierCapLimit && tierCapLimit > 0 && p > tierCapLimit) {
+                const p1 = tierCapLimit;
+                const p2 = p - tierCapLimit;
+                const g1 = IndexerEngine.compoundBalance(p1, annualCdiRate, multiplier, bDays);
+                const g2 = IndexerEngine.compoundBalance(p2, annualCdiRate, tierSecondaryPerc, bDays);
+                return g1 + g2;
+            } else {
+                return IndexerEngine.compoundBalance(p, annualCdiRate, multiplier, bDays);
+            }
+        };
+
         // Gross balance compounding over business days
-        const rawGrossBalance = IndexerEngine.compoundBalance(principal, annualCdiRate, multiplier, businessDays);
+        const rawGrossBalance = calculateGross(principal, businessDays);
         const grossBalance = RoundingEngine.round(rawGrossBalance, 2, roundingMode);
         const totalGrossYield = Math.max(0, grossBalance - principal);
 
@@ -51,7 +67,7 @@ export class RuleEngine {
 
         if (businessDays > 0) {
             const prevBusinessDays = businessDays - 1;
-            const prevGrossRaw = IndexerEngine.compoundBalance(principal, annualCdiRate, multiplier, prevBusinessDays);
+            const prevGrossRaw = calculateGross(principal, prevBusinessDays);
             const prevGross = RoundingEngine.round(prevGrossRaw, 2, roundingMode);
             const prevGrossYield = Math.max(0, prevGross - principal);
             const prevTaxes = TaxEngine.computeTaxes(prevGrossYield, Math.max(0, calendarDays - 1), taxConfig);

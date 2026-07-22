@@ -42,6 +42,8 @@ export interface ProductRuleVersion {
     tax_rule_id: string;
     allows_partial_withdrawals: boolean;
     rounding_mode: RoundingMode;
+    tier_cap_limit?: number; // ex: 10000 (Até R$ 10.000,00 rende mais)
+    tier_secondary_percentage?: number; // ex: 100 (Excedente rende 100%)
     tax_rules_config?: TaxRulesConfig;
     product?: Product;
 }
