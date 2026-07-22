@@ -65,9 +65,19 @@ export async function GET(request: Request) {
         emprestimos.forEach(emp => {
             // TIPO 2: Juros Mensais / Retiradas Cartão
             if (emp.cobranca_mensal && emp.emprestimo_meses) {
+                // Sort all months by mes_referencia ascending to calculate correct installment index
+                const sortedAllMonths = [...emp.emprestimo_meses].sort((a: any, b: any) =>
+                    a.mes_referencia.localeCompare(b.mes_referencia)
+                );
+                const totalParcelas = emp.cartao_quantidade_meses || sortedAllMonths.length;
+
                 const pendingMonths = emp.emprestimo_meses.filter((m: any) => !m.pago);
                 
                 pendingMonths.forEach((m: any) => {
+                    const monthIndex = sortedAllMonths.findIndex((sm: any) => sm.id === m.id);
+                    const parcelaAtual = monthIndex >= 0 ? monthIndex + 1 : 1;
+                    const parcelasRestantes = Math.max(0, totalParcelas - parcelaAtual);
+
                     const dueDate = calcularVencimentoParcela(
                         emp.data_inicio,
                         m.mes_referencia,
@@ -106,7 +116,10 @@ export async function GET(request: Request) {
                             cartao_final_nis: emp.cartao_final_nis !== undefined ? emp.cartao_final_nis : null,
                             cartao_senha: emp.cartao_senha || null,
                             nis: emp.cartao_final_nis !== undefined ? emp.cartao_final_nis : null,
-                            senha: emp.cartao_senha || null
+                            senha: emp.cartao_senha || null,
+                            parcela_atual: parcelaAtual,
+                            total_parcelas: totalParcelas,
+                            parcelas_restantes: parcelasRestantes
                         });
                     }
                 });

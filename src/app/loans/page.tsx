@@ -1,19 +1,51 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, TrendingUp, Eye, EyeOff, Edit2, CheckCircle, AlertTriangle, Lock, Calculator, Phone, Calendar } from "lucide-react";
+import { Plus, TrendingUp, Eye, EyeOff, Edit2, CheckCircle, AlertTriangle, Lock, Calculator, Phone, Calendar, Search } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/ToastProvider";
 import { Emprestimo } from "@/types";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import LoanCalculatorModal from "@/components/LoanCalculatorModal";
 import ConfirmationModal from "@/components/ConfirmationModal";
 import NisCalendarModal from "@/components/NisCalendarModal";
 
+type FilterType = 'todos' | 'ativos' | 'pagos' | 'cartao';
+
 export default function LoansPage() {
-    const { emprestimos, loading } = useApp();
+    const { emprestimos, emprestimosMeses, loading } = useApp();
     const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
     const [isNisCalendarOpen, setIsNisCalendarOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [activeFilter, setActiveFilter] = useState<FilterType>('todos');
+
+    const counts = useMemo(() => {
+        const ativos = emprestimos.filter(e => e.status === 'ativo').length;
+        const pagos = emprestimos.filter(e => e.status === 'pago').length;
+        const cartao = emprestimos.filter(e => e.tipo === 'cartao').length;
+        return { ativos, pagos, cartao, total: emprestimos.length };
+    }, [emprestimos]);
+
+    const filteredLoans = useMemo(() => {
+        let list = [...emprestimos];
+        // Filter
+        if (activeFilter === 'ativos') list = list.filter(e => e.status === 'ativo');
+        else if (activeFilter === 'pagos') list = list.filter(e => e.status === 'pago');
+        else if (activeFilter === 'cartao') list = list.filter(e => e.tipo === 'cartao');
+        // Search
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            list = list.filter(e => e.cliente_nome.toLowerCase().includes(q));
+        }
+        // Sort: active first, then by due date
+        list.sort((a, b) => {
+            const statusA = a.status === 'pago' ? 1 : 0;
+            const statusB = b.status === 'pago' ? 1 : 0;
+            if (statusA !== statusB) return statusA - statusB;
+            return a.data_fim.localeCompare(b.data_fim);
+        });
+        return list;
+    }, [emprestimos, activeFilter, searchQuery]);
 
     if (loading) {
         return <div className="container" style={{ textAlign: 'center', padding: 'var(--space-xl)' }}>Carregando...</div>;
@@ -21,58 +53,95 @@ export default function LoansPage() {
 
     return (
         <div className="container">
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-lg)', flexWrap: 'wrap', gap: '12px' }}>
-                <h1>Meus Empréstimos</h1>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <button
-                        onClick={() => setIsNisCalendarOpen(true)}
-                        className="btn"
-                        style={{
-                            padding: '0.5rem 1rem',
-                            background: 'var(--color-surface-2)',
-                            border: '1px solid var(--color-border)',
-                            fontSize: '0.85rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                        }}
-                    >
-                        <Calendar size={18} /> Datas do NIS
-                    </button>
-                    <button
-                        onClick={() => setIsCalculatorOpen(true)}
-                        className="btn"
-                        style={{
-                            padding: '0.5rem 1rem',
-                            background: 'var(--color-surface-2)',
-                            border: '1px solid var(--color-border)',
-                            fontSize: '0.85rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                        }}
-                    >
-                        <Calculator size={18} /> Calcular Juros
-                    </button>
-                    <Link
-                        href="/loans/new?type=cartao"
-                        className="btn"
-                        style={{
-                            padding: '0.5rem 1rem',
-                            background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-                            color: 'white',
-                            border: 'none',
-                            fontSize: '0.85rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                        }}
-                    >
-                        <Plus size={18} /> <span>+ Cartão</span>
-                    </Link>
-                    <Link href="/loans/new" className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
-                        <Plus size={20} /> <span style={{ marginLeft: '4px' }}>Comum</span>
-                    </Link>
+            <header style={{ marginBottom: 'var(--space-lg)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+                    <div>
+                        <h1 style={{ marginBottom: '4px' }}>Meus Empréstimos</h1>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+                            {counts.ativos} ativo{counts.ativos !== 1 ? 's' : ''} · {counts.pagos} pago{counts.pagos !== 1 ? 's' : ''}
+                        </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <button
+                            onClick={() => setIsNisCalendarOpen(true)}
+                            className="btn"
+                            style={{
+                                padding: '0.5rem 1rem',
+                                background: 'var(--color-surface-2)',
+                                border: '1px solid var(--color-border)',
+                                fontSize: '0.85rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }}
+                        >
+                            <Calendar size={18} /> Datas do NIS
+                        </button>
+                        <button
+                            onClick={() => setIsCalculatorOpen(true)}
+                            className="btn"
+                            style={{
+                                padding: '0.5rem 1rem',
+                                background: 'var(--color-surface-2)',
+                                border: '1px solid var(--color-border)',
+                                fontSize: '0.85rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }}
+                        >
+                            <Calculator size={18} /> Calcular Juros
+                        </button>
+                        <Link
+                            href="/loans/new?type=cartao"
+                            className="btn"
+                            style={{
+                                padding: '0.5rem 1rem',
+                                background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                                color: 'white',
+                                border: 'none',
+                                fontSize: '0.85rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                            }}
+                        >
+                            <Plus size={18} /> <span>+ Cartão</span>
+                        </Link>
+                        <Link href="/loans/new" className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+                            <Plus size={20} /> <span style={{ marginLeft: '4px' }}>Comum</span>
+                        </Link>
+                    </div>
+                </div>
+
+                {/* Search */}
+                <div style={{ position: 'relative', marginBottom: '12px' }}>
+                    <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)' }} />
+                    <input
+                        type="text"
+                        placeholder="Buscar por nome do cliente..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="search-input"
+                    />
+                </div>
+
+                {/* Filter Pills */}
+                <div className="filter-pills">
+                    {[
+                        { key: 'todos' as FilterType, label: `Todos (${counts.total})` },
+                        { key: 'ativos' as FilterType, label: `Ativos (${counts.ativos})` },
+                        { key: 'pagos' as FilterType, label: `Pagos (${counts.pagos})` },
+                        { key: 'cartao' as FilterType, label: `Cartão (${counts.cartao})` },
+                    ].map(f => (
+                        <button
+                            key={f.key}
+                            onClick={() => setActiveFilter(f.key)}
+                            className={`filter-pill ${activeFilter === f.key ? 'filter-pill-active' : ''}`}
+                        >
+                            {f.label}
+                        </button>
+                    ))}
                 </div>
             </header>
 
@@ -85,18 +154,14 @@ export default function LoansPage() {
                         Criar Primeiro Empréstimo
                     </Link>
                 </div>
+            ) : filteredLoans.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 'var(--space-xl) var(--space-md)', color: 'var(--color-text-secondary)' }}>
+                    <Search size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
+                    <p>Nenhum empréstimo encontrado para &quot;{searchQuery}&quot;</p>
+                </div>
             ) : (
                 <div style={{ display: 'grid', gap: 'var(--space-md)' }}>
-                    {[...emprestimos]
-                        .sort((a, b) => {
-                            const statusA = a.status === 'pago' ? 1 : 0;
-                            const statusB = b.status === 'pago' ? 1 : 0;
-                            if (statusA !== statusB) {
-                                return statusA - statusB;
-                            }
-                            return a.data_fim.localeCompare(b.data_fim);
-                        })
-                        .map((emprestimo) => (
+                    {filteredLoans.map((emprestimo) => (
                         <LoanCard key={emprestimo.id} emprestimo={emprestimo} />
                     ))}
                 </div>
@@ -117,7 +182,7 @@ export default function LoansPage() {
 
 
 function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
-    const { marcarEmprestimoPago } = useApp();
+    const { marcarEmprestimoPago, emprestimosMeses } = useApp();
     const { showToast } = useToast();
     const [showPaidModal, setShowPaidModal] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -152,7 +217,12 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
     };
 
     return (
-        <div className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)', opacity: isPaid ? 0.9 : 1 }}>
+        <div className="card card-hover" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)', opacity: isPaid ? 0.55 : 1, position: 'relative' }}>
+            {isPaid && (
+                <div style={{ position: 'absolute', top: '12px', right: '-28px', background: 'var(--color-success)', color: 'white', fontSize: '0.6rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '2px 32px', transform: 'rotate(45deg)', zIndex: 1 }}>
+                    Finalizado
+                </div>
+            )}
             {/* Header / Status */}
             <div style={{
                 background: isPaid ? 'rgba(var(--color-success-rgb), 0.1)' : stats.isOverdue ? 'rgba(var(--color-danger-rgb), 0.1)' : 'var(--color-surface-2)',
@@ -203,7 +273,7 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
                 </div>
 
                 <span style={{ color: 'var(--color-text-tertiary)', fontWeight: 'normal', fontSize: '0.8rem' }}>
-                    {emprestimo.juros_mensal}% a.m
+                    {Number(emprestimo.juros_mensal).toFixed(2)}% a.m
                 </span>
             </div>
 
@@ -276,6 +346,26 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
                         </div>
                     </div>
                 )}
+
+                {/* Progress Bar for Monthly Installments */}
+                {emprestimo.cobranca_mensal && (() => {
+                    const loanMonths = emprestimosMeses.filter(m => m.emprestimo_id === emprestimo.id);
+                    const total = loanMonths.length;
+                    const paid = loanMonths.filter(m => m.pago).length;
+                    const pct = total > 0 ? Math.round((paid / total) * 100) : 0;
+                    if (total === 0) return null;
+                    return (
+                        <div style={{ marginBottom: '16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                                <span>{paid} de {total} parcelas pagas</span>
+                                <span style={{ fontWeight: '700', color: pct === 100 ? 'var(--color-success)' : 'var(--color-text-primary)' }}>{pct}%</span>
+                            </div>
+                            <div className="progress-bar">
+                                <div className="progress-fill" style={{ width: `${pct}%` }} />
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px', background: 'var(--color-border)', border: '1px solid var(--color-border)', borderRadius: '8px', overflow: 'hidden', marginBottom: '16px' }}>
                     <div style={{ background: 'var(--color-surface-1)', padding: '8px 12px' }}>

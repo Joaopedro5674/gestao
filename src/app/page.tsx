@@ -352,7 +352,16 @@ export default function Home() {
   return (
     <div className="container" key={refreshKey} style={{ maxWidth: '800px', margin: '0 auto' }}>
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '50px' }}>Carregando...</div>
+        <div style={{ padding: '20px' }}>
+          <div className="skeleton skeleton-header" />
+          <div className="skeleton skeleton-text" style={{ width: '40%' }} />
+          <div style={{ height: '16px' }} />
+          <div className="skeleton skeleton-card" />
+          <div style={{ height: '16px' }} />
+          <div className="skeleton skeleton-card" style={{ height: '80px' }} />
+          <div style={{ height: '12px' }} />
+          <div className="skeleton skeleton-card" style={{ height: '80px' }} />
+        </div>
       ) : (
         <>
           {/* HEADER: Context & Verification */}
@@ -491,8 +500,30 @@ export default function Home() {
             </div>
           </header>
 
+          {/* MINI SUMMARY CARDS */}
+          <div className="mini-cards">
+            <div className="mini-card">
+              <div className="mini-card-label">Ativos</div>
+              <div className="mini-card-value" style={{ color: 'var(--color-primary)' }}>
+                {imoveis.filter(i => i.ativo).length + emprestimos.filter(e => e.status === 'ativo').length}
+              </div>
+            </div>
+            <div className="mini-card">
+              <div className="mini-card-label">Vencidos</div>
+              <div className="mini-card-value" style={{ color: alerts.filter(a => a.type === 'danger').length > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                {alerts.filter(a => a.type === 'danger').length}
+              </div>
+            </div>
+            <div className="mini-card">
+              <div className="mini-card-label">Este Mês</div>
+              <div className="mini-card-value" style={{ color: 'var(--color-success)' }}>
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalNetProfit)}
+              </div>
+            </div>
+          </div>
+
           {/* MAIN INDICATOR */}
-          <div className="card" style={{ background: 'var(--color-primary)', color: 'white', marginBottom: 'var(--space-xl)', textAlign: 'center', padding: '32px' }}>
+          <div className="card" style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #6366f1 100%)', color: 'white', marginBottom: 'var(--space-xl)', textAlign: 'center', padding: '32px', boxShadow: '0 8px 32px rgba(79, 70, 229, 0.3)' }}>
             <div style={{ fontSize: '0.9rem', opacity: 0.9, marginBottom: '8px', textTransform: 'uppercase' }}>Lucro Líquido Geral Estimado</div>
             <div style={{ fontSize: '2.5rem', fontWeight: '800' }}>
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalNetProfit)}
@@ -512,7 +543,7 @@ export default function Home() {
               <Link href="/properties" style={{ fontSize: '0.85rem', color: 'var(--color-primary)' }}>Gerenciar</Link>
             </div>
 
-            <Link href="/properties" className="card" style={{ display: 'block', borderLeft: '4px solid var(--color-primary)', textDecoration: 'none', transition: 'transform 0.1s' }}>
+            <Link href="/properties" className="card card-hover" style={{ display: 'block', borderLeft: '4px solid var(--color-primary)', textDecoration: 'none', transition: 'transform 0.1s' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Lucro Líquido (Mês)</div>
@@ -545,12 +576,15 @@ export default function Home() {
               <Link href="/loans" style={{ fontSize: '0.85rem', color: 'var(--color-primary)' }}>Gerenciar</Link>
             </div>
 
-            <Link href="/loans" className="card" style={{ display: 'block', borderLeft: '4px solid var(--color-success)', textDecoration: 'none' }}>
+            <Link href="/loans" className="card card-hover" style={{ display: 'block', borderLeft: '4px solid var(--color-success)', textDecoration: 'none' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Juros Recebidos (Mês)</div>
                   <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--color-text-primary)' }}>
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalLoanInterestReceived || 0)}
+                    {(totalLoanInterestReceived || 0) > 0
+                      ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalLoanInterestReceived || 0)
+                      : <span style={{ fontSize: '1rem', color: 'var(--color-text-tertiary)' }}>Nenhum juros recebido este mês</span>
+                    }
                   </div>
                 </div>
                 {/* Legacy: Pending not shown on main dash in simpler version */}

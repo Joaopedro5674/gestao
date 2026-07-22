@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, List, LayoutGrid } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import styles from "./calendar.module.css";
 import { calcularVencimentoParcela } from "@/utils/loanHelpers";
@@ -20,6 +20,7 @@ export default function CalendarPage() {
     const { imoveis, imoveisPagamentos, emprestimos, emprestimosMeses, loading, nisCalendar } = useApp();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
 
     // Normalize today for comparisons
     const today = new Date();
@@ -152,7 +153,8 @@ export default function CalendarPage() {
     // Calendar generation
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const monthName = currentDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+    const monthName = currentDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })
+        .replace(/ De /i, ' de ').replace(/ Do /i, ' do ');
 
     const handlePrevMonth = () => setCurrentDate(new Date(currentYear, currentMonth - 1, 1));
     const handleNextMonth = () => setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
@@ -259,14 +261,90 @@ export default function CalendarPage() {
                 </div>
             </div>
 
-            {/* Eventos do dia selecionado */}
-            <div className={styles.eventsListSection}>
-                <h2 className={styles.listTitle}>
-                    Vencimentos do dia {selectedDate.toLocaleDateString('pt-BR')}
+            {/* View Toggle */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h2 className={styles.listTitle} style={{ marginBottom: 0 }}>
+                    {viewMode === 'calendar' ? `Vencimentos do dia ${selectedDate.toLocaleDateString('pt-BR')}` : 'Todos os Vencimentos do Mês'}
                 </h2>
+                <div className={styles.viewToggle}>
+                    <button
+                        className={`${styles.viewToggleBtn} ${viewMode === 'calendar' ? styles.viewToggleBtnActive : ''}`}
+                        onClick={() => setViewMode('calendar')}
+                    >
+                        <LayoutGrid size={14} />
+                    </button>
+                    <button
+                        className={`${styles.viewToggleBtn} ${viewMode === 'list' ? styles.viewToggleBtnActive : ''}`}
+                        onClick={() => setViewMode('list')}
+                    >
+                        <List size={14} />
+                    </button>
+                </div>
+            </div>
+
+            {viewMode === 'list' ? (
+                /* LIST VIEW */
+                <div className={styles.eventsListSection}>
+                    {viewMonthEvents.length === 0 ? (
+                        <div className={styles.emptyState}>Nenhum vencimento neste mês.</div>
+                    ) : (
+                        <div className={styles.listViewContainer}>
+                            {[...viewMonthEvents]
+                                .sort((a, b) => a.date.localeCompare(b.date))
+                                .map(ev => {
+                                    const [, , dayStr] = ev.date.split('-');
+                                    const evDate = new Date(ev.date + 'T12:00:00');
+                                    const monthShort = evDate.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
+                                    let dividerClass = '';
+                                    if (ev.status === 'overdue') dividerClass = styles.dividerRed;
+                                    else if (ev.type === 'loan') dividerClass = styles.dividerYellow;
+                                    else dividerClass = styles.dividerGreen;
+
+                                    let statusLabel = '';
+                                    let statusClass = '';
+                                    if (ev.status === 'paid') { statusLabel = 'Pago'; statusClass = styles.statusPaid; }
+                                    if (ev.status === 'pending') { statusLabel = 'A Vencer'; statusClass = styles.statusPending; }
+                                    if (ev.status === 'overdue') { statusLabel = 'Atrasado'; statusClass = styles.statusOverdue; }
+
+                                    return (
+                                        <div key={ev.id} className={styles.listViewItem}>
+                                            <div className={styles.listViewDate}>
+                                                <div className={styles.listViewDay}>{parseInt(dayStr)}</div>
+                                                <div className={styles.listViewMonth}>{monthShort}</div>
+                                            </div>
+                                            <div className={`${styles.listViewDivider} ${dividerClass}`} />
+                                            <div style={{ flex: 1 }}>
+                                                <div className={styles.eventName}>{ev.title}</div>
+                                                <div className={styles.eventSub}>{ev.subtitle}</div>
+                                            </div>
+                                            <div className={styles.eventValueStatus}>
+                                                <div className={styles.eventValue}>{formatCurrency(ev.value)}</div>
+                                                <div className={`${styles.statusBadge} ${statusClass}`}>{statusLabel}</div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                        </div>
+                    )}
+                </div>
+            ) : (
+                /* CALENDAR DAY DETAIL VIEW */
+                <div className={styles.eventsListSection}>
 
                 {selectedEvents.length === 0 ? (
-                    <div className={styles.emptyState}>Nenhum vencimento para esta data.</div>
+                    <div className={styles.emptyState}>
+                        {(() => {
+                            // Find next upcoming event
+                            const upcoming = allEvents
+                                .filter(e => e.date > selectedDateStr && e.status !== 'paid')
+                                .sort((a, b) => a.date.localeCompare(b.date))[0];
+                            if (upcoming) {
+                                const upDate = new Date(upcoming.date + 'T12:00:00');
+                                return `Nenhum vencimento nesta data. Próximo: ${upDate.toLocaleDateString('pt-BR')} (${upcoming.title} — ${formatCurrency(upcoming.value)})`;
+                            }
+                            return 'Nenhum vencimento para esta data.';
+                        })()}
+                    </div>
                 ) : (
                     <div className={styles.eventCardList}>
                         {selectedEvents.map(ev => {
@@ -296,7 +374,8 @@ export default function CalendarPage() {
                         })}
                     </div>
                 )}
-            </div>
+                </div>
+            )}
         </div>
     );
 }
