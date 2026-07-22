@@ -5,6 +5,9 @@ import { IndexerEngine } from '@/engine/indexerEngine';
 
 export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url);
+        const dateParam = searchParams.get('date');
+
         // Compute today's date in BRT timezone (America/Sao_Paulo UTC-3)
         const getTodayBRT = () => {
             const d = new Date();
