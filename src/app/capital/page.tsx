@@ -219,6 +219,21 @@ export default function CapitalPage() {
         }
     };
 
+    const handleDeleteLot = async (lotId: string) => {
+        if (!confirm('Tem certeza que deseja excluir este lote de investimento?')) return;
+        try {
+            const res = await fetch(`/api/capital/lots?id=${lotId}`, { method: 'DELETE' });
+            if (res.ok) {
+                fetchData();
+            } else {
+                const errData = await res.json();
+                alert(`Erro ao excluir lote: ${errData.error}`);
+            }
+        } catch (err) {
+            console.error("Erro ao excluir lote:", err);
+        }
+    };
+
     const handleCreateProductSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newProductForm.bank_id || !newProductForm.name) {
@@ -575,6 +590,13 @@ export default function CapitalPage() {
                                             {formatBRL(s.netBalance)}
                                         </strong>
                                     </div>
+                                    <button
+                                        onClick={() => handleDeleteLot(s.lot.id)}
+                                        style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '6px', padding: '6px 10px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                                        title="Excluir Aporte"
+                                    >
+                                        🗑️
+                                    </button>
                                 </div>
                             </div>
                         ))}

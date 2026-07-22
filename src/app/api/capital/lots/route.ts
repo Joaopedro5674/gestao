@@ -35,7 +35,8 @@ export async function POST(request: Request) {
         }
 
         const principal = parseFloat(initial_principal);
-        const depDate = deposit_date ? new Date(deposit_date).toISOString() : new Date().toISOString();
+        // Ensure clean date string without timezone degradation (e.g. 2026-07-17T12:00:00.000Z)
+        const depDate = deposit_date ? `${deposit_date.split('T')[0]}T12:00:00.000Z` : new Date().toISOString();
 
         // Fixed demo user ID for single-tenant / local mode
         const userId = '00000000-0000-0000-0000-000000000000';
@@ -57,6 +58,27 @@ export async function POST(request: Request) {
         if (error) throw error;
 
         return NextResponse.json({ success: true, lot });
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}
+
+export async function DELETE(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+
+        if (!id) {
+            return NextResponse.json({ error: 'ID do lote é obrigatório' }, { status: 400 });
+        }
+
+        const { error } = await supabaseAdmin
+            .from('investment_lots')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        return NextResponse.json({ success: true });
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
