@@ -66,15 +66,33 @@ export default function CapitalPage() {
 
     const [banks, setBanks] = useState<BankSummary[]>([]);
     const [lots, setLots] = useState<LotEvaluatedState[]>([]);
+    const [allProductsList, setAllProductsList] = useState<any[]>([]);
 
     // Modal Aporte
     const [isAporteModalOpen, setIsAporteModalOpen] = useState(false);
     const [aporteForm, setAporteForm] = useState({
         bankId: '',
-        productId: 'NUBANK_CAIXINHA_100CDI',
+        productId: '',
+        productRuleVersionId: '55555555-5555-5555-5555-555555555555',
         amount: '',
         date: new Date().toISOString().split('T')[0],
         notes: ''
+    });
+
+    // Form Novo Banco
+    const [newBankForm, setNewBankForm] = useState({
+        name: '',
+        code: '',
+        brand_color: '#820ad1'
+    });
+
+    // Form Novo Produto
+    const [newProductForm, setNewProductForm] = useState({
+        bank_id: '',
+        name: '',
+        indexer_percentage: '120',
+        tier_cap_limit: '10000',
+        tier_secondary_percentage: '100'
     });
 
     // Conciliação State
@@ -96,6 +114,16 @@ export default function CapitalPage() {
                 setBanks(data.banks);
                 setLots(data.lots);
             }
+
+            const rulesRes = await fetch('/api/capital/rules');
+            if (rulesRes.ok) {
+                const rulesData = await rulesRes.json();
+                const combined = (rulesData.products || []).map((p: any) => {
+                    const v = (rulesData.versions || []).find((ver: any) => ver.product_id === p.id);
+                    return { ...p, version: v };
+                });
+                setAllProductsList(combined);
+            }
         } catch (err) {
             console.error("Erro ao carregar dados do Módulo CAPITAL:", err);
         } finally {
@@ -106,6 +134,51 @@ export default function CapitalPage() {
     useEffect(() => {
         fetchData();
     }, []);
+
+    const handleCreateBankSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newBankForm.name) return;
+        const code = newBankForm.code || `${newBankForm.name.toUpperCase().replace(/\s+/g, '_')}`;
+
+        try {
+            const res = await fetch('/api/capital/banks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: newBankForm.name,
+                    code,
+                    brand_color: newBankForm.brand_color
+                })
+            });
+
+            if (res.ok) {
+                setNewBankForm({ name: '', code: '', brand_color: '#820ad1' });
+                fetchData();
+            }
+        } catch (err) {
+            console.error("Erro ao criar banco:", err);
+        }
+    };
+
+    const handleCreateProductSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newProductForm.bank_id || !newProductForm.name) return;
+
+        try {
+            const res = await fetch('/api/capital/rules', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newProductForm)
+            });
+
+            if (res.ok) {
+                setNewProductForm({ bank_id: '', name: '', indexer_percentage: '120', tier_cap_limit: '10000', tier_secondary_percentage: '100' });
+                fetchData();
+            }
+        } catch (err) {
+            console.error("Erro ao criar produto:", err);
+        }
+    };
 
     const formatBRL = (val: number) => {
         if (!showValues) return '••••••••';
@@ -454,7 +527,7 @@ export default function CapitalPage() {
                                 O Core Banking permite configurar regras de rendimento por faixas para produtos como a <strong>Caixinha Turbo do Nubank</strong> ou <strong>Mercado Pago 120% até R$ 10.000,00</strong>.
                             </p>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '24px' }}>
                                 <div style={{ background: 'var(--color-surface-2)', padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
                                     <h4 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: '8px', color: '#820ad1' }}>🔮 Faixas de Rendimento (Tiered Rates)</h4>
                                     <p style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)', margin: 0 }}>
@@ -472,6 +545,108 @@ export default function CapitalPage() {
                                     </p>
                                 </div>
                             </div>
+
+                            {/* FORMS LADO A LADO */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+                                {/* FORM NOVO BANCO */}
+                                <div style={{ padding: '16px', background: 'var(--color-surface-1)', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+                                    <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '12px' }}>🏦 Cadastrar Novo Banco</h4>
+                                    <form onSubmit={handleCreateBankSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                        <div className="form-group">
+                                            <label className="label">Nome do Banco</label>
+                                            <input
+                                                type="text"
+                                                className="input"
+                                                placeholder="Ex: Sofisa Direto"
+                                                value={newBankForm.name}
+                                                onChange={(e) => setNewBankForm({ ...newBankForm, name: e.target.value })}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="label">Cor da Marca (Hexadecimal)</label>
+                                            <input
+                                                type="color"
+                                                className="input"
+                                                style={{ height: '40px', padding: '2px' }}
+                                                value={newBankForm.brand_color}
+                                                onChange={(e) => setNewBankForm({ ...newBankForm, brand_color: e.target.value })}
+                                            />
+                                        </div>
+                                        <button type="submit" className="btn btn-primary" style={{ fontWeight: 700 }}>
+                                            Cadastrar Banco
+                                        </button>
+                                    </form>
+                                </div>
+
+                                {/* FORM NOVO PRODUTO COM FAIXAS */}
+                                <div style={{ padding: '16px', background: 'var(--color-surface-1)', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+                                    <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '12px' }}>📊 Cadastrar Produto / Faixa de Rendimento</h4>
+                                    <form onSubmit={handleCreateProductSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                        <div className="form-group">
+                                            <label className="label">Instituição</label>
+                                            <select
+                                                className="input"
+                                                value={newProductForm.bank_id}
+                                                onChange={(e) => setNewProductForm({ ...newProductForm, bank_id: e.target.value })}
+                                                required
+                                            >
+                                                <option value="">Selecione o banco</option>
+                                                {banks.map(b => (
+                                                    <option key={b.bank_id} value={b.bank_id}>{b.bank_name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="label">Nome do Produto</label>
+                                            <input
+                                                type="text"
+                                                className="input"
+                                                placeholder="Ex: Caixinha Turbo 120% até 10k"
+                                                value={newProductForm.name}
+                                                onChange={(e) => setNewProductForm({ ...newProductForm, name: e.target.value })}
+                                                required
+                                            />
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                            <div className="form-group">
+                                                <label className="label">% CDI 1ª Faixa</label>
+                                                <input
+                                                    type="number"
+                                                    className="input"
+                                                    placeholder="120"
+                                                    value={newProductForm.indexer_percentage}
+                                                    onChange={(e) => setNewProductForm({ ...newProductForm, indexer_percentage: e.target.value })}
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="label">Teto 1ª Faixa (R$)</label>
+                                                <input
+                                                    type="number"
+                                                    className="input"
+                                                    placeholder="10000"
+                                                    value={newProductForm.tier_cap_limit}
+                                                    onChange={(e) => setNewProductForm({ ...newProductForm, tier_cap_limit: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="label">% CDI Excedente</label>
+                                            <input
+                                                type="number"
+                                                className="input"
+                                                placeholder="100"
+                                                value={newProductForm.tier_secondary_percentage}
+                                                onChange={(e) => setNewProductForm({ ...newProductForm, tier_secondary_percentage: e.target.value })}
+                                            />
+                                        </div>
+                                        <button type="submit" className="btn btn-primary" style={{ fontWeight: 700 }}>
+                                            Salvar Produto com Regras
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -487,11 +662,16 @@ export default function CapitalPage() {
                                 <label className="label">Produto / Banco</label>
                                 <select
                                     className="input"
-                                    value={aporteForm.productId}
-                                    onChange={(e) => setAporteForm({ ...aporteForm, productId: e.target.value })}
+                                    value={aporteForm.productRuleVersionId}
+                                    onChange={(e) => setAporteForm({ ...aporteForm, productRuleVersionId: e.target.value })}
                                 >
-                                    <option value="NUBANK_CAIXINHA_100CDI">Nubank — Caixinha 100% CDI</option>
-                                    <option value="MERCADOPAGO_CONTA_105CDI">Mercado Pago — Conta 105% CDI</option>
+                                    <option value="55555555-5555-5555-5555-555555555555">Nubank — Caixinha 100% CDI</option>
+                                    <option value="66666666-6666-6666-6666-666666666666">Mercado Pago — Conta 105% CDI</option>
+                                    {allProductsList.filter(p => p.version).map(p => (
+                                        <option key={p.version.id} value={p.version.id}>
+                                            {p.bank?.name || 'Banco'} — {p.name} ({p.version?.indexer_percentage}% CDI)
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                             <div className="form-group">
