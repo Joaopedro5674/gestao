@@ -101,9 +101,9 @@ export default function CapitalPage() {
     const [newProductForm, setNewProductForm] = useState({
         bank_id: '',
         name: '',
-        indexer_percentage: '120',
-        tier_cap_limit: '10000',
-        tier_secondary_percentage: '100',
+        indexer_percentage: '100',
+        tier_cap_limit: '',
+        tier_secondary_percentage: '',
         tax_type: 'STANDARD'
     });
 
@@ -257,7 +257,7 @@ export default function CapitalPage() {
             });
 
             if (res.ok) {
-                setNewProductForm({ bank_id: '', name: '', indexer_percentage: '120', tier_cap_limit: '10000', tier_secondary_percentage: '100', tax_type: 'STANDARD' });
+                setNewProductForm({ bank_id: '', name: '', indexer_percentage: '100', tier_cap_limit: '', tier_secondary_percentage: '', tax_type: 'STANDARD' });
                 fetchData();
                 alert('✅ Produto de investimento cadastrado com sucesso!');
             } else {
