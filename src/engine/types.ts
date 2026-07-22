@@ -26,6 +26,8 @@ export interface TaxRulesConfig {
     code: string;
     name: string;
     is_exempt: boolean;
+    is_iof_exempt?: boolean; // Isenção de IOF (ex: Caixinhas sem IOF)
+    is_ir_exempt?: boolean;  // Isenção de IR (ex: LCI / LCA)
     iof_table_json: Record<number, number>;
     ir_table_json: Record<number, number>;
 }

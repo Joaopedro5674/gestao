@@ -398,13 +398,23 @@ export default function CapitalPage() {
                         {lots.map((s) => (
                             <div key={s.lot.id} className="card" style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                                 <div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
                                         <span style={{ fontWeight: 800, fontSize: '1rem' }}>
-                                            {s.lot.rule_version?.product?.bank?.name} — {s.lot.rule_version?.product?.name}
+                                            {s.lot.rule_version?.product?.bank?.name || 'Banco'} — {s.lot.rule_version?.product?.name || 'Produto'}
                                         </span>
                                         <span style={{ fontSize: '0.7rem', background: 'var(--color-surface-2)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, color: 'var(--color-primary)' }}>
                                             {s.lot.rule_version?.indexer_percentage}% CDI
                                         </span>
+                                        {s.lot.rule_version?.tier_cap_limit && (
+                                            <span style={{ fontSize: '0.7rem', background: 'rgba(130, 10, 209, 0.15)', color: '#a855f7', border: '1px solid rgba(130, 10, 209, 0.3)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                                                🔮 Faixa Limitada (até R$ {s.lot.rule_version.tier_cap_limit.toLocaleString('pt-BR')})
+                                            </span>
+                                        )}
+                                        {s.iofRatePercent === 0 && (
+                                            <span style={{ fontSize: '0.7rem', background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                                                🛡️ Isento de IOF
+                                            </span>
+                                        )}
                                     </div>
                                     <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
                                         Aporte: {new Date(s.lot.deposit_date).toLocaleDateString('pt-BR')} ({s.calendarDays} dias corridos / {s.businessDays} dias úteis)

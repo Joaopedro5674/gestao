@@ -16,7 +16,7 @@ export class TaxEngine {
      * Calculates applicable IOF percentage (0.00 to 0.96) for a given calendar age in days.
      */
     public static getIofRate(calendarDays: number, taxConfig?: TaxRulesConfig): number {
-        if (taxConfig?.is_exempt) return 0;
+        if (taxConfig?.is_exempt || taxConfig?.is_iof_exempt) return 0;
         if (calendarDays >= 30) return 0;
         if (calendarDays <= 0) return 0.96;
 
@@ -26,14 +26,9 @@ export class TaxEngine {
 
     /**
      * Calculates applicable IR (Imposto de Renda) percentage for a given calendar age in days.
-     * Table (Lei 11.033/2004):
-     * <= 180 days: 22.5% (0.225)
-     * 181 to 360 days: 20.0% (0.20)
-     * 361 to 720 days: 17.5% (0.175)
-     * > 720 days: 15.0% (0.15)
      */
     public static getIrRate(calendarDays: number, taxConfig?: TaxRulesConfig): number {
-        if (taxConfig?.is_exempt) return 0;
+        if (taxConfig?.is_exempt || taxConfig?.is_ir_exempt) return 0;
         if (calendarDays <= 180) return 0.225;
         if (calendarDays <= 360) return 0.200;
         if (calendarDays <= 720) return 0.175;
