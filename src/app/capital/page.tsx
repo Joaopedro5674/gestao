@@ -54,7 +54,7 @@ export default function CapitalPage() {
     const [showValues, setShowValues] = useState(true);
     const [activeTab, setActiveTab] = useState<'lotes' | 'conciliacao' | 'timemachine' | 'regras'>('lotes');
 
-    const [cdiRate, setCdiRate] = useState(10.65);
+    const [cdiRate, setCdiRate] = useState(14.15);
     const [summary, setSummary] = useState({
         total_net_balance: 0,
         total_gross_balance: 0,

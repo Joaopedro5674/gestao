@@ -20,7 +20,7 @@ export class RuleEngine {
     public evaluateLot(
         lot: InvestmentLot,
         targetDateStr: string,
-        annualCdiRate: number = 10.65
+        annualCdiRate: number = 14.15
     ): CalculatedLotState {
         const depositDateStr = lot.deposit_date.split('T')[0];
         const calendarDays = this.calendarEngine.getCalendarDays(depositDateStr, targetDateStr);
