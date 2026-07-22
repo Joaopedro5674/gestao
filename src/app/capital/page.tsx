@@ -430,51 +430,53 @@ export default function CapitalPage() {
         <main style={{ minHeight: '100vh', background: 'var(--color-background)', padding: 'var(--space-md) 0' }}>
             <div className="container" style={{ maxWidth: '1050px' }}>
                 {/* Header */}
-                <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-lg)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-                        <Link href="/" style={{ padding: '8px', marginLeft: '-8px', color: 'var(--color-text-secondary)' }}>
-                            <ChevronLeft size={24} />
-                        </Link>
-                        <div>
-                            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0 }}>Core Banking — Capital</h1>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: '0.75rem', color: '#22c55e', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
-                                    🟢 CDI Oficial Banco Central: {cdiRate.toFixed(2)}% a.a.
-                                </span>
-                                <button
-                                    onClick={fetchData}
-                                    style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-primary)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px', borderRadius: '6px' }}
-                                    title="Sincronizar com a API oficial do Banco Central do Brasil"
-                                >
-                                    🔄 Sincronizar BCB
-                                </button>
+                <header style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: 'var(--space-lg)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Link href="/" style={{ padding: '4px', marginLeft: '-4px', color: 'var(--color-text-secondary)' }}>
+                                <ChevronLeft size={24} />
+                            </Link>
+                            <div>
+                                <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, lineHeight: 1.2 }}>Core Banking — Capital</h1>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: '0.7rem', color: '#22c55e', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                                        🟢 CDI BCB: {cdiRate.toFixed(2)}% a.a.
+                                    </span>
+                                    <button
+                                        onClick={fetchData}
+                                        style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-primary)', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px', borderRadius: '6px' }}
+                                        title="Sincronizar com a API oficial do Banco Central do Brasil"
+                                    >
+                                        🔄 Sincronizar
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <button
-                            onClick={() => setShowValues(!showValues)}
-                            className="btn"
-                            style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', padding: '10px' }}
-                            title={showValues ? 'Ocultar Valores' : 'Mostrar Valores'}
-                        >
-                            {showValues ? <EyeOff size={18} /> : <Eye size={18} />}
-                        </button>
-                        <button
-                            onClick={() => setIsResgateModalOpen(true)}
-                            className="btn"
-                            style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
-                        >
-                            💸 Efetuar Resgate
-                        </button>
-                        <button
-                            onClick={() => setIsAporteModalOpen(true)}
-                            className="btn btn-primary"
-                            style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
-                        >
-                            <Plus size={18} /> Novo Aporte
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%', justifyContent: 'flex-start' }}>
+                            <button
+                                onClick={() => setShowValues(!showValues)}
+                                className="btn"
+                                style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', padding: '8px 12px', flex: '0 0 auto' }}
+                                title={showValues ? 'Ocultar Valores' : 'Mostrar Valores'}
+                            >
+                                {showValues ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                            <button
+                                onClick={() => setIsResgateModalOpen(true)}
+                                className="btn"
+                                style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem', flex: '1 1 auto', justifyContent: 'center' }}
+                            >
+                                💸 Resgatar
+                            </button>
+                            <button
+                                onClick={() => setIsAporteModalOpen(true)}
+                                className="btn btn-primary"
+                                style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem', flex: '1 1 auto', justifyContent: 'center' }}
+                            >
+                                <Plus size={18} /> Aporte
+                            </button>
+                        </div>
                     </div>
                 </header>
 

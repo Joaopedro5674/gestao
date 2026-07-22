@@ -54,62 +54,71 @@ export default function LoansPage() {
     return (
         <div className="container">
             <header style={{ marginBottom: 'var(--space-lg)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
                     <div>
-                        <h1 style={{ marginBottom: '4px' }}>Meus Empréstimos</h1>
-                        <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+                        <h1 style={{ marginBottom: '2px', fontSize: '1.5rem', fontWeight: 800 }}>Meus Empréstimos</h1>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
                             {counts.ativos} ativo{counts.ativos !== 1 ? 's' : ''} · {counts.pagos} pago{counts.pagos !== 1 ? 's' : ''}
                         </span>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
                         <button
                             onClick={() => setIsNisCalendarOpen(true)}
                             className="btn"
                             style={{
-                                padding: '0.5rem 1rem',
+                                padding: '0.4rem 0.75rem',
                                 background: 'var(--color-surface-2)',
                                 border: '1px solid var(--color-border)',
-                                fontSize: '0.85rem',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '6px'
+                                gap: '4px',
+                                flex: '1 1 auto',
+                                justifyContent: 'center'
                             }}
                         >
-                            <Calendar size={18} /> Datas do NIS
+                            <Calendar size={15} /> NIS
                         </button>
                         <button
                             onClick={() => setIsCalculatorOpen(true)}
                             className="btn"
                             style={{
-                                padding: '0.5rem 1rem',
+                                padding: '0.4rem 0.75rem',
                                 background: 'var(--color-surface-2)',
                                 border: '1px solid var(--color-border)',
-                                fontSize: '0.85rem',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '6px'
+                                gap: '4px',
+                                flex: '1 1 auto',
+                                justifyContent: 'center'
                             }}
                         >
-                            <Calculator size={18} /> Calcular Juros
+                            <Calculator size={15} /> Juros
                         </button>
                         <Link
                             href="/loans/new?type=cartao"
                             className="btn"
                             style={{
-                                padding: '0.5rem 1rem',
+                                padding: '0.4rem 0.75rem',
                                 background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
                                 color: 'white',
                                 border: 'none',
-                                fontSize: '0.85rem',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '4px'
+                                gap: '4px',
+                                flex: '1 1 auto',
+                                justifyContent: 'center'
                             }}
                         >
-                            <Plus size={18} /> <span>+ Cartão</span>
+                            <Plus size={15} /> Cartão
                         </Link>
-                        <Link href="/loans/new" className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
-                            <Plus size={20} /> <span style={{ marginLeft: '4px' }}>Comum</span>
+                        <Link href="/loans/new" className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', fontWeight: 700, flex: '1 1 auto', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Plus size={15} /> Comum
                         </Link>
                     </div>
                 </div>
@@ -285,7 +294,7 @@ function LoanCard({ emprestimo }: { emprestimo: Emprestimo }) {
                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(emprestimo.valor_emprestado)}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <h3 style={{ textTransform: 'capitalize', margin: 0 }}>{emprestimo.cliente_nome}</h3>
+                            <h3 style={{ textTransform: 'capitalize', margin: 0, wordBreak: 'break-word', overflowWrap: 'break-word', maxWidth: '100%' }}>{emprestimo.cliente_nome}</h3>
                             {emprestimo.telefone && (
                                 <span style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     <Phone size={12} /> {emprestimo.telefone}

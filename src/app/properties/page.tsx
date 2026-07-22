@@ -200,14 +200,14 @@ function PropertyCard({ imovel }: { imovel: Imovel }) {
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                    <Link href={`/properties/${imovel.id}`} className="btn" style={{ background: 'var(--color-surface-2)', fontSize: '0.8rem', border: '1px solid var(--color-border)', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', gap: '6px', width: '100%', flexWrap: 'wrap' }}>
+                    <Link href={`/properties/${imovel.id}`} className="btn" style={{ background: 'var(--color-surface-2)', fontSize: '0.75rem', fontWeight: 600, border: '1px solid var(--color-border)', justifyContent: 'center', flex: '1 1 auto', padding: '8px 10px' }}>
                         Ver Dados
                     </Link>
-                    <Link href={`/properties/${imovel.id}/edit`} className="btn" style={{ background: 'var(--color-surface-2)', fontSize: '0.8rem', border: '1px solid var(--color-border)', justifyContent: 'center' }}>
+                    <Link href={`/properties/${imovel.id}/edit`} className="btn" style={{ background: 'var(--color-surface-2)', fontSize: '0.75rem', fontWeight: 600, border: '1px solid var(--color-border)', justifyContent: 'center', flex: '1 1 auto', padding: '8px 10px' }}>
                         Editar
                     </Link>
-                    <Link href={`/properties/${imovel.id}`} className="btn" style={{ background: 'var(--color-primary)', color: 'white', fontSize: '0.8rem', border: 'none', justifyContent: 'center' }}>
+                    <Link href={`/properties/${imovel.id}`} className="btn" style={{ background: 'var(--color-primary)', color: 'white', fontSize: '0.75rem', fontWeight: 700, border: 'none', justifyContent: 'center', flex: '1 1 auto', padding: '8px 10px' }}>
                         Pagamentos
                     </Link>
                 </div>
