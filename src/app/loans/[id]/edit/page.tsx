@@ -102,7 +102,9 @@ function LoanEditForm({
         interestRate: loan.juros_mensal.toString().replace('.', ','),
         phone: loan.telefone || "",
         startDate: loan.data_inicio,
-        dueDate: loan.data_fim
+        dueDate: loan.data_fim,
+        checkNumber: loan.numero_cheque || "",
+        notes: loan.observacoes || ""
     });
 
     const [cartaoData, setCartaoData] = useState({
@@ -134,7 +136,9 @@ function LoanEditForm({
             valor_emprestado: parsedPrincipal,
             telefone: formData.phone,
             data_inicio: formData.startDate,
-            data_fim: formData.dueDate
+            data_fim: formData.dueDate,
+            numero_cheque: !isCartao && formData.checkNumber ? formData.checkNumber.trim() : null,
+            observacoes: formData.notes ? formData.notes.trim() : null
         };
 
         if (isCartao) {
@@ -363,6 +367,30 @@ function LoanEditForm({
                                 style={isCartao ? { opacity: 0.8, cursor: 'not-allowed', background: 'var(--color-surface-2)' } : {}}
                             />
                         </div>
+                    </div>
+
+                    {!isCartao && (
+                        <div className="form-group">
+                            <label className="label">Número do Cheque (Opcional)</label>
+                            <input
+                                type="text"
+                                className="input"
+                                placeholder="Ex: 850082"
+                                value={formData.checkNumber}
+                                onChange={(e) => setFormData({ ...formData, checkNumber: e.target.value })}
+                            />
+                        </div>
+                    )}
+
+                    <div className="form-group">
+                        <label className="label">Observações / Notas (Opcional)</label>
+                        <input
+                            type="text"
+                            className="input"
+                            placeholder="Ex: Entregue via motoboy / Cartão de terceiros"
+                            value={formData.notes}
+                            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                        />
                     </div>
                 </div>
             </section>

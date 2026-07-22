@@ -67,7 +67,17 @@ export default function LoanDetailsPage({ params }: { params: Promise<{ id: stri
                                 </span>
                             )}
                         </div>
-                        <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>Criado em {startDateStr}</p>
+                        {emprestimo.numero_cheque && (
+                            <div style={{ fontSize: '0.85rem', color: 'var(--color-primary)', fontWeight: '600', marginTop: '2px' }}>
+                                📝 Cheque Nº {emprestimo.numero_cheque}
+                            </div>
+                        )}
+                        {emprestimo.observacoes && (
+                            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                                💬 {emprestimo.observacoes}
+                            </div>
+                        )}
+                        <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>Criado em {startDateStr}</p>
                     </div>
                     <div>
                         {isPaid ? (
