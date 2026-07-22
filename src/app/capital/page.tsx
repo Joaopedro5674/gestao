@@ -1067,13 +1067,14 @@ export default function CapitalPage() {
             {/* MODAL NOVO APORTE */}
             {isAporteModalOpen && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', backdropFilter: 'blur(4px)' }}>
-                    <div className="card" style={{ width: '100%', maxWidth: '480px', padding: '24px' }}>
+                    <div className="card" style={{ width: '95%', maxWidth: '560px', padding: '24px' }}>
                         <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '16px' }}>Novo Aporte em Lote</h3>
                         <form onSubmit={handleCreateAporte} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                             <div className="form-group">
                                 <label className="label">Produto / Banco</label>
                                 <select
                                     className="input"
+                                    style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', fontSize: '0.85rem', paddingRight: '28px' }}
                                     value={aporteForm.productRuleVersionId}
                                     onChange={(e) => setAporteForm({ ...aporteForm, productRuleVersionId: e.target.value })}
                                     required
@@ -1085,7 +1086,7 @@ export default function CapitalPage() {
                                             <option value="">Selecione o produto / banco</option>
                                             {allProductsList.filter(p => p.version).map(p => (
                                                 <option key={p.version.id} value={p.version.id}>
-                                                    {p.bank?.name || 'Banco'} — {p.name} ({p.version?.indexer_percentage}% CDI)
+                                                    {p.bank?.name || 'Banco'} | {p.name} ({p.version?.indexer_percentage}% CDI)
                                                 </option>
                                             ))}
                                         </>
