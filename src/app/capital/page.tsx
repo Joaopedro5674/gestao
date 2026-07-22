@@ -55,6 +55,8 @@ export default function CapitalPage() {
     const [activeTab, setActiveTab] = useState<'lotes' | 'conciliacao' | 'timemachine' | 'regras'>('lotes');
 
     const [cdiRate, setCdiRate] = useState(14.15);
+    const [cdiSyncDate, setCdiSyncDate] = useState('');
+    const [cdiSource, setCdiSource] = useState('Banco Central do Brasil (SGS 12)');
     const [summary, setSummary] = useState({
         total_net_balance: 0,
         total_gross_balance: 0,
@@ -369,9 +371,18 @@ export default function CapitalPage() {
                         </Link>
                         <div>
                             <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0 }}>Core Banking — Capital</h1>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)' }}>
-                                CDI Oficial Banco Central: <strong>{cdiRate.toFixed(2)}% a.a.</strong>
-                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '0.75rem', color: '#22c55e', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                                    🟢 CDI Oficial Banco Central: {cdiRate.toFixed(2)}% a.a.
+                                </span>
+                                <button
+                                    onClick={fetchData}
+                                    style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-primary)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px', borderRadius: '6px' }}
+                                    title="Sincronizar com a API oficial do Banco Central do Brasil"
+                                >
+                                    🔄 Sincronizar BCB
+                                </button>
+                            </div>
                         </div>
                     </div>
 

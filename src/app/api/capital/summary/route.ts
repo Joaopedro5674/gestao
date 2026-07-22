@@ -12,6 +12,8 @@ export async function GET(request: Request) {
         // Fetch official rate from BCB or fallback
         const bcbData = await IndexerEngine.fetchOfficialBcbRate(12);
         const cdiRate = bcbData ? bcbData.annualRate : 14.15;
+        const cdiSyncDate = bcbData ? bcbData.date : todayStr;
+        const cdiSource = bcbData ? 'Banco Central do Brasil (SGS 12)' : 'Backup Oficial (14.15% a.a.)';
 
         // Fetch banks, products, product_rule_versions, tax_rules_config
         const { data: banks } = await supabaseAdmin.from('banks').select('*').eq('active', true);
@@ -102,6 +104,8 @@ export async function GET(request: Request) {
         return NextResponse.json({
             success: true,
             cdi_annual_rate: cdiRate,
+            cdi_sync_date: cdiSyncDate,
+            cdi_source: cdiSource,
             today: todayStr,
             summary: {
                 total_net_balance: totalNetBalance,
