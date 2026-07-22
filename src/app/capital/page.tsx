@@ -407,6 +407,20 @@ export default function CapitalPage() {
         }
     };
 
+    const handleClearConciliationHistory = async () => {
+        if (!confirm('Deseja limpar todo o histórico de auditorias e conciliações?')) return;
+        try {
+            const res = await fetch('/api/capital/conciliate', { method: 'DELETE' });
+            if (res.ok) {
+                setConciliationHistory([]);
+                fetchData();
+                alert('✨ Histórico de conciliações limpo com sucesso!');
+            }
+        } catch (err) {
+            console.error('Erro ao limpar histórico:', err);
+        }
+    };
+
     const [replayResult, setReplayResult] = useState<any>(null);
     const [replayLoading, setReplayLoading] = useState(false);
 
@@ -730,7 +744,16 @@ export default function CapitalPage() {
                         {/* HISTÓRICO DE AUDITORIAS */}
                         {conciliationHistory.length > 0 && (
                             <div style={{ marginTop: '28px', paddingTop: '20px', borderTop: '1px solid var(--color-border)' }}>
-                                <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '14px' }}>📋 Histórico de Conciliações & Auditorias</h4>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                                    <h4 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>📋 Histórico de Conciliações & Auditorias</h4>
+                                    <button
+                                        onClick={handleClearConciliationHistory}
+                                        className="btn"
+                                        style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', fontSize: '0.75rem', fontWeight: 700, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    >
+                                        🗑️ Limpar Histórico
+                                    </button>
+                                </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                     {conciliationHistory.map((m: any) => (
                                         <div key={m.id} style={{
