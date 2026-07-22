@@ -52,6 +52,33 @@ export async function POST(request: Request) {
 
         if (error) throw error;
 
+        // If auto_adjust is true, create an adjustment lot in investment_lots so the total balance updates immediately!
+        if (auto_adjust && Math.abs(audit.divergenceCents) > 0.01) {
+            // Find active version for this bank
+            const { data: prods } = await supabaseAdmin
+                .from('products')
+                .select('*, version:product_rule_versions(*)')
+                .eq('bank_id', bank_id);
+
+            let targetVersionId = prods?.[0]?.version?.[0]?.id;
+
+            if (!targetVersionId) {
+                // Fallback to standard version if no specific product version
+                const { data: versions } = await supabaseAdmin.from('product_rule_versions').select('id').limit(1);
+                targetVersionId = versions?.[0]?.id || '55555555-5555-5555-5555-555555555555';
+            }
+
+            await supabaseAdmin.from('investment_lots').insert({
+                user_id: userId,
+                product_rule_version_id: targetVersionId,
+                deposit_date: new Date().toISOString(),
+                initial_principal: audit.divergenceCents,
+                current_balance: audit.divergenceCents,
+                status: 'ACTIVE',
+                notes: 'Ajuste de Conciliação Bancária'
+            });
+        }
+
         return NextResponse.json({ success: true, audit, record });
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 });
