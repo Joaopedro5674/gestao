@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { IndexerEngine } from '@/engine/indexerEngine';
 
 // CRON JOB / HEARTBEAT
-// Ping this endpoint via Vercel Cron to prevent Supabase pausing
-// Schedule: Every day or every few hours
+// Ping this endpoint via Vercel Cron to prevent Supabase pausing and auto-sync CDI
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const type = searchParams.get('type') || 'anti_hibernation';
         const isFallback = type === 'fallback';
 
-        // 1. Anti-Hibernation Query (Keep functional)
+        // 1. Anti-Hibernation Query
         const { error: heartbeatError } = await supabaseAdmin
             .from('imoveis')
             .select('id')
@@ -18,8 +18,30 @@ export async function GET(request: Request) {
 
         if (heartbeatError) throw heartbeatError;
 
-        // 2. Log Success
-        const message = isFallback ? 'Fallback executado automaticamente' : 'Cron principal executado';
+        // 2. Auto Sync CDI from Banco Central
+        let cdiSyncedRate = null;
+        try {
+            const bcbData = await IndexerEngine.fetchOfficialBcbRate(12);
+            if (bcbData) {
+                cdiSyncedRate = bcbData.annualRate;
+                await supabaseAdmin
+                    .from('daily_rates')
+                    .upsert({
+                        indexer_code: 'CDI',
+                        rate_date: bcbData.date,
+                        annualized_rate: bcbData.annualRate,
+                        daily_rate: Math.pow(1 + (bcbData.annualRate / 100), 1/252) - 1,
+                        source_name: 'Banco Central do Brasil (SGS 12)'
+                    }, { onConflict: 'indexer_code,rate_date' });
+            }
+        } catch (cdiErr) {
+            console.warn("Cron CDI Auto-Sync Warning:", cdiErr);
+        }
+
+        // 3. Log Success
+        const message = isFallback 
+            ? `Fallback executado (CDI: ${cdiSyncedRate || '14.15'}% a.a.)` 
+            : `Cron principal executado (CDI: ${cdiSyncedRate || '14.15'}% a.a.)`;
 
         const { error: logError } = await supabaseAdmin
             .from('cron_logs')
