@@ -82,6 +82,14 @@ export default function CapitalPage() {
         notes: ''
     });
 
+    // Form Resgate
+    const [isResgateModalOpen, setIsResgateModalOpen] = useState(false);
+    const [resgateForm, setResgateForm] = useState({
+        bank_id: '',
+        amount: '',
+        date: new Date().toISOString().split('T')[0]
+    });
+
     // Form Novo Banco
     const [newBankForm, setNewBankForm] = useState({
         name: '',
@@ -307,8 +315,39 @@ export default function CapitalPage() {
                 setAporteForm({ bankId: '', productId: '', productRuleVersionId: '', amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
                 fetchData();
             }
+    };
+
+    const handleCreateResgate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const requestedVal = parseCurrencyInput(resgateForm.amount);
+        if (isNaN(requestedVal) || requestedVal <= 0 || !resgateForm.bank_id) {
+            alert('Por favor, selecione uma instituição e digite o valor a resgatar.');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/capital/withdrawals', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    bank_id: resgateForm.bank_id,
+                    amount: requestedVal,
+                    withdrawal_date: resgateForm.date
+                })
+            });
+
+            if (res.ok) {
+                setIsResgateModalOpen(false);
+                setResgateForm({ bank_id: '', amount: '', date: new Date().toISOString().split('T')[0] });
+                fetchData();
+                alert('✨ Resgate efetuado com sucesso! Saldo atualizado e impostos retidos na fonte.');
+            } else {
+                const d = await res.json();
+                alert(`Erro ao efetuar resgate: ${d.error}`);
+            }
         } catch (err) {
-            console.error("Erro ao criar aporte:", err);
+            console.error("Erro no resgate:", err);
+            alert(`Erro no resgate: ${err}`);
         }
     };
 
@@ -418,6 +457,13 @@ export default function CapitalPage() {
                             title={showValues ? 'Ocultar Valores' : 'Mostrar Valores'}
                         >
                             {showValues ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                        <button
+                            onClick={() => setIsResgateModalOpen(true)}
+                            className="btn"
+                            style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >
+                            💸 Efetuar Resgate
                         </button>
                         <button
                             onClick={() => setIsAporteModalOpen(true)}
@@ -1165,6 +1211,66 @@ export default function CapitalPage() {
                                     Confirmar Aporte
                                 </button>
                                 <button type="button" onClick={() => setIsAporteModalOpen(false)} className="btn btn-full" style={{ background: 'var(--color-surface-2)' }}>
+                                    Cancelar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL EFETUAR RESGATE */}
+            {isResgateModalOpen && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', backdropFilter: 'blur(4px)' }}>
+                    <div className="card" style={{ width: '95%', maxWidth: '500px', padding: '24px' }}>
+                        <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '16px' }}>💸 Efetuar Resgate / Retirada</h3>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
+                            O resgate consome automaticamente o aporte <strong>mais antigo (FIFO)</strong> da instituição para otimizar e reduzir o Imposto de Renda e IOF pagos.
+                        </p>
+                        <form onSubmit={handleCreateResgate} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            <div className="form-group">
+                                <label className="label">Instituição Financeira</label>
+                                <select
+                                    className="input"
+                                    value={resgateForm.bank_id}
+                                    onChange={(e) => setResgateForm({ ...resgateForm, bank_id: e.target.value })}
+                                    required
+                                >
+                                    <option value="">Selecione o banco</option>
+                                    {banks.map(b => (
+                                        <option key={b.bank_id} value={b.bank_id}>
+                                            {b.bank_name} (Saldo: {formatBRL(b.net_balance)})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="label">Valor a Resgatar (R$)</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    placeholder="Ex: 5.000,00"
+                                    value={resgateForm.amount}
+                                    onChange={(e) => setResgateForm({ ...resgateForm, amount: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="label">Data da Retirada</label>
+                                <input
+                                    type="date"
+                                    className="input"
+                                    value={resgateForm.date}
+                                    onChange={(e) => setResgateForm({ ...resgateForm, date: e.target.value })}
+                                    required
+                                />
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                                <button type="submit" className="btn btn-full" style={{ background: '#ef4444', color: '#ffffff', fontWeight: 700 }}>
+                                    Confirmar Resgate
+                                </button>
+                                <button type="button" onClick={() => setIsResgateModalOpen(false)} className="btn btn-full" style={{ background: 'var(--color-surface-2)' }}>
                                     Cancelar
                                 </button>
                             </div>
