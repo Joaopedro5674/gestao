@@ -103,3 +103,60 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
+
+export async function POST(request: Request) {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || authHeader !== `Bearer ${process.env.N8N_API_KEY}`) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+        const body = await request.json();
+        let { pagamento_id, imovel_id, command, text, message: inputMsg } = body;
+
+        const rawCmd = command || text || inputMsg || (typeof body === 'string' ? body : '');
+        if (typeof rawCmd === 'string' && rawCmd.startsWith('pago:')) {
+            const parts = rawCmd.split(':');
+            if (parts.length >= 2) {
+                pagamento_id = parts[1];
+            }
+        }
+
+        const targetId = pagamento_id || imovel_id || body.id;
+
+        if (!targetId) {
+            return NextResponse.json({ error: 'ID do pagamento de aluguel é obrigatório' }, { status: 400 });
+        }
+
+        const { data: pag, error: pErr } = await supabaseAdmin
+            .from('imoveis_pagamentos')
+            .update({ status: 'pago', pago_em: new Date().toISOString() })
+            .eq('id', targetId)
+            .select('*, imovel:imoveis(*)')
+            .single();
+
+        if (pErr) throw pErr;
+
+        const clientName = pag.imovel?.cliente_nome || 'N/A';
+        const imovelNome = pag.imovel?.nome || '';
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('pt-BR');
+        const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+        const formattedMsg = `✅ Pagamento de Aluguel Confirmado!\n\n👤 Cliente: ${clientName}\n🏠 Imóvel: ${imovelNome}\n💳 Valor: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pag.valor || pag.imovel?.valor_aluguel || 0)}\n📅 Data: ${dateStr}\n⏰ Hora: ${timeStr}`;
+
+        return NextResponse.json({
+            success: true,
+            cliente_nome: clientName,
+            imovel_nome: imovelNome,
+            valor: pag.valor || pag.imovel?.valor_aluguel || 0,
+            tipo: 'pagamento_aluguel',
+            data: dateStr,
+            hora: timeStr,
+            message: formattedMsg,
+            data_record: pag
+        });
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}
