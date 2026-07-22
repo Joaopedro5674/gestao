@@ -95,7 +95,8 @@ export default function CapitalPage() {
         name: '',
         indexer_percentage: '120',
         tier_cap_limit: '10000',
-        tier_secondary_percentage: '100'
+        tier_secondary_percentage: '100',
+        tax_type: 'STANDARD'
     });
 
     // Conciliação State
@@ -233,7 +234,7 @@ export default function CapitalPage() {
             });
 
             if (res.ok) {
-                setNewProductForm({ bank_id: '', name: '', indexer_percentage: '120', tier_cap_limit: '10000', tier_secondary_percentage: '100' });
+                setNewProductForm({ bank_id: '', name: '', indexer_percentage: '120', tier_cap_limit: '10000', tier_secondary_percentage: '100', tax_type: 'STANDARD' });
                 fetchData();
                 alert('✅ Produto de investimento cadastrado com sucesso!');
             } else {
@@ -885,14 +886,24 @@ export default function CapitalPage() {
                                                 onChange={(e) => setNewProductForm({ ...newProductForm, tier_secondary_percentage: e.target.value })}
                                             />
                                         </div>
+                                        <div className="form-group">
+                                            <label className="label">Regra de Tributação / IOF</label>
+                                            <select
+                                                className="input"
+                                                value={newProductForm.tax_type}
+                                                onChange={(e) => setNewProductForm({ ...newProductForm, tax_type: e.target.value })}
+                                            >
+                                                <option value="STANDARD">🔴 CDB Padrão (Cobram IOF + IR Regressivo) — Ex: Nubank</option>
+                                                <option value="NO_IOF">🟡 Sem IOF (Apenas IR Regressivo) — Ex: Mercado Pago</option>
+                                                <option value="EXEMPT">🟢 100% Isento (Sem IOF e Sem IR) — Ex: LCI / LCA</option>
+                                            </select>
+                                        </div>
                                         <button type="submit" className="btn btn-primary" style={{ fontWeight: 700 }}>
                                             Salvar Produto com Regras
                                         </button>
                                     </form>
                                 </div>
                             </div>
-
-                            {/* BANCOS CADASTRADOS + PRODUTOS VINCULADOS */}
                             <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid var(--color-border)' }}>
                                 <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '14px' }}>🏦 Instituições Financeiras Cadastradas ({banks.length})</h4>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

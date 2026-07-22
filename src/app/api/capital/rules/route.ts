@@ -18,7 +18,7 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { bank_id, name, indexer_percentage, tier_cap_limit, tier_secondary_percentage } = body;
+        const { bank_id, name, indexer_percentage, tier_cap_limit, tier_secondary_percentage, tax_type } = body;
 
         if (!bank_id || !name || !indexer_percentage) {
             return NextResponse.json({ error: 'Instituição (bank_id), Nome do produto e % CDI são obrigatórios' }, { status: 400 });
@@ -40,11 +40,68 @@ export async function POST(request: Request) {
 
         if (pErr) throw pErr;
 
-        // Fetch valid tax rule ID or fallback to standard
+        // Determine tax rule ID based on user selection (STANDARD, NO_IOF, EXEMPT)
         let taxRuleId = '88888888-8888-8888-8888-888888888888';
-        const { data: taxRules } = await supabaseAdmin.from('tax_rules_config').select('id').limit(1);
-        if (taxRules && taxRules.length > 0) {
-            taxRuleId = taxRules[0].id;
+
+        if (tax_type === 'NO_IOF') {
+            const { data: noIofRule } = await supabaseAdmin
+                .from('tax_rules_config')
+                .select('id')
+                .eq('code', 'NO_IOF_WITH_IR')
+                .maybeSingle();
+
+            if (noIofRule) {
+                taxRuleId = noIofRule.id;
+            } else {
+                const { data: createdRule } = await supabaseAdmin
+                    .from('tax_rules_config')
+                    .insert({
+                        id: '77777777-7777-7777-7777-777777777777',
+                        code: 'NO_IOF_WITH_IR',
+                        name: 'Isento de IOF (Apenas IR Regressivo)',
+                        is_exempt: false,
+                        is_iof_exempt: true,
+                        iof_table_json: {},
+                        ir_table_json: { "180": 0.225, "360": 0.20, "720": 0.175, "9999": 0.15 }
+                    })
+                    .select()
+                    .single();
+                if (createdRule) taxRuleId = createdRule.id;
+            }
+        } else if (tax_type === 'EXEMPT') {
+            const { data: exemptRule } = await supabaseAdmin
+                .from('tax_rules_config')
+                .select('id')
+                .eq('code', 'EXEMPT_ALL')
+                .maybeSingle();
+
+            if (exemptRule) {
+                taxRuleId = exemptRule.id;
+            } else {
+                const { data: createdRule } = await supabaseAdmin
+                    .from('tax_rules_config')
+                    .insert({
+                        id: '99999999-9999-9999-9999-999999999999',
+                        code: 'EXEMPT_ALL',
+                        name: '100% Isento de Impostos (LCI/LCA)',
+                        is_exempt: true,
+                        is_iof_exempt: true,
+                        is_ir_exempt: true,
+                        iof_table_json: {},
+                        ir_table_json: {}
+                    })
+                    .select()
+                    .single();
+                if (createdRule) taxRuleId = createdRule.id;
+            }
+        } else {
+            // STANDARD: CDB Padrão (IOF + IR)
+            const { data: stdRule } = await supabaseAdmin
+                .from('tax_rules_config')
+                .select('id')
+                .eq('code', 'STANDARD_CDB_IOF_IR')
+                .maybeSingle();
+            if (stdRule) taxRuleId = stdRule.id;
         }
 
         // 2. Prepare payload for Rule Version
