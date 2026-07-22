@@ -47,22 +47,44 @@ export async function POST(request: Request) {
             taxRuleId = taxRules[0].id;
         }
 
-        // 2. Insert Rule Version
-        const { data: version, error: vErr } = await supabaseAdmin
+        // 2. Prepare payload for Rule Version
+        const insertPayload: any = {
+            product_id: product.id,
+            version_number: 1,
+            valid_from: new Date().toISOString(),
+            indexer_code: 'CDI',
+            indexer_percentage: parseFloat(indexer_percentage),
+            day_count_convention: 'BUSINESS_252',
+            tax_rule_id: taxRuleId
+        };
+
+        if (tier_cap_limit) {
+            insertPayload.tier_cap_limit = parseFloat(tier_cap_limit);
+        }
+        if (tier_secondary_percentage) {
+            insertPayload.tier_secondary_percentage = parseFloat(tier_secondary_percentage);
+        }
+
+        let { data: version, error: vErr } = await supabaseAdmin
             .from('product_rule_versions')
-            .insert({
-                product_id: product.id,
-                version_number: 1,
-                valid_from: new Date().toISOString(),
-                indexer_code: 'CDI',
-                indexer_percentage: parseFloat(indexer_percentage),
-                day_count_convention: 'BUSINESS_252',
-                tax_rule_id: taxRuleId,
-                tier_cap_limit: tier_cap_limit ? parseFloat(tier_cap_limit) : null,
-                tier_secondary_percentage: tier_secondary_percentage ? parseFloat(tier_secondary_percentage) : 100
-            })
+            .insert(insertPayload)
             .select()
             .single();
+
+        // Safe fallback if tier_cap_limit column does not exist yet in DB schema
+        if (vErr && (vErr.message?.includes('tier_cap_limit') || vErr.code === 'PGRST204')) {
+            delete insertPayload.tier_cap_limit;
+            delete insertPayload.tier_secondary_percentage;
+
+            const fallbackRes = await supabaseAdmin
+                .from('product_rule_versions')
+                .insert(insertPayload)
+                .select()
+                .single();
+
+            version = fallbackRes.data;
+            vErr = fallbackRes.error;
+        }
 
         if (vErr) throw vErr;
 

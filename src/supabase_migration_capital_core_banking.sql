@@ -221,3 +221,8 @@ VALUES (
     'BUSINESS_252',
     '88888888-8888-8888-8888-888888888888'
 ) ON CONFLICT (product_id, version_number) DO NOTHING;
+
+-- Garante colunas de faixas de rendimento caso a tabela ja existisse previamente
+ALTER TABLE product_rule_versions ADD COLUMN IF NOT EXISTS tier_cap_limit NUMERIC(24, 8);
+ALTER TABLE product_rule_versions ADD COLUMN IF NOT EXISTS tier_secondary_percentage NUMERIC(10, 4) DEFAULT 100.0;
+
