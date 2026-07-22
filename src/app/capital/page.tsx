@@ -220,7 +220,10 @@ export default function CapitalPage() {
 
     const handleCreateProductSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newProductForm.bank_id || !newProductForm.name) return;
+        if (!newProductForm.bank_id || !newProductForm.name) {
+            alert('Por favor, selecione uma instituição e preencha o nome do produto.');
+            return;
+        }
 
         try {
             const res = await fetch('/api/capital/rules', {
@@ -232,9 +235,14 @@ export default function CapitalPage() {
             if (res.ok) {
                 setNewProductForm({ bank_id: '', name: '', indexer_percentage: '120', tier_cap_limit: '10000', tier_secondary_percentage: '100' });
                 fetchData();
+                alert('✅ Produto de investimento cadastrado com sucesso!');
+            } else {
+                const errData = await res.json();
+                alert(`Erro ao cadastrar produto: ${errData.error}`);
             }
         } catch (err) {
             console.error("Erro ao criar produto:", err);
+            alert(`Erro ao criar produto: ${err}`);
         }
     };
 

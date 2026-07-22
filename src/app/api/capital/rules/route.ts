@@ -21,7 +21,7 @@ export async function POST(request: Request) {
         const { bank_id, name, indexer_percentage, tier_cap_limit, tier_secondary_percentage } = body;
 
         if (!bank_id || !name || !indexer_percentage) {
-            return NextResponse.json({ error: 'bank_id, name e indexer_percentage são obrigatórios' }, { status: 400 });
+            return NextResponse.json({ error: 'Instituição (bank_id), Nome do produto e % CDI são obrigatórios' }, { status: 400 });
         }
 
         const productCode = `${name.replace(/\s+/g, '_').toUpperCase()}_${Date.now()}`;
@@ -40,8 +40,12 @@ export async function POST(request: Request) {
 
         if (pErr) throw pErr;
 
-        // Default tax rule ID (Standard CDB IOF + IR)
-        const taxRuleId = '88888888-8888-8888-8888-888888888888';
+        // Fetch valid tax rule ID or fallback to standard
+        let taxRuleId = '88888888-8888-8888-8888-888888888888';
+        const { data: taxRules } = await supabaseAdmin.from('tax_rules_config').select('id').limit(1);
+        if (taxRules && taxRules.length > 0) {
+            taxRuleId = taxRules[0].id;
+        }
 
         // 2. Insert Rule Version
         const { data: version, error: vErr } = await supabaseAdmin
