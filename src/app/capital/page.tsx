@@ -977,15 +977,28 @@ export default function CapitalPage() {
                                                                                             </span>
                                                                                         </>
                                                                                     )}
-                                                                                    <span style={{
-                                                                                        fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 700,
-                                                                                        background: v.tax_rules_config?.is_exempt
-                                                                                            ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.1)',
-                                                                                        color: v.tax_rules_config?.is_exempt ? '#22c55e' : '#f87171',
-                                                                                        border: `1px solid ${v.tax_rules_config?.is_exempt ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.2)'}`
-                                                                                    }}>
-                                                                                        {v.tax_rules_config?.is_exempt ? 'Isento IOF/IR' : 'IOF + IR Regressivo'}
-                                                                                    </span>
+                                                                                    {v.tax_rules_config?.is_exempt ? (
+                                                                                        <span style={{
+                                                                                            fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 700,
+                                                                                            background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)'
+                                                                                        }}>
+                                                                                            🟢 100% Isento (LCI/LCA)
+                                                                                        </span>
+                                                                                    ) : v.tax_rules_config?.is_iof_exempt ? (
+                                                                                        <span style={{
+                                                                                            fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 700,
+                                                                                            background: 'rgba(234, 179, 8, 0.15)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.3)'
+                                                                                        }}>
+                                                                                            🟡 Sem IOF (Apenas IR)
+                                                                                        </span>
+                                                                                    ) : (
+                                                                                        <span style={{
+                                                                                            fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 700,
+                                                                                            background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.2)'
+                                                                                        }}>
+                                                                                            🔴 IOF + IR Regressivo
+                                                                                        </span>
+                                                                                    )}
                                                                                 </>
                                                                             )}
                                                                         </div>
