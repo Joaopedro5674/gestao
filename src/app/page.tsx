@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Wallet, Building, RefreshCw, AlertTriangle, CheckCircle, Table, Download, LogOut, ShieldCheck, Info } from "lucide-react";
+import { ArrowRight, Wallet, Building, RefreshCw, AlertTriangle, CheckCircle, Table, Download, LogOut, ShieldCheck, Info, Landmark } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
@@ -587,7 +587,30 @@ export default function Home() {
                     }
                   </div>
                 </div>
-                {/* Legacy: Pending not shown on main dash in simpler version */}
+              </div>
+            </Link>
+          </section>
+
+          {/* --- BLOCK 2.5: CAPITAL & INVESTIMENTOS --- */}
+          <section style={{ marginBottom: 'var(--space-xl)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-md)' }}>
+              <h2 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700' }}>
+                <Landmark size={20} color="#820ad1" /> Capital & Investimentos
+              </h2>
+              <Link href="/capital" style={{ fontSize: '0.85rem', color: 'var(--color-primary)' }}>Gerenciar</Link>
+            </div>
+
+            <Link href="/capital" className="card card-hover" style={{ display: 'block', borderLeft: '4px solid #820ad1', textDecoration: 'none' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Core Banking & Rendimentos</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--color-text-primary)' }}>
+                    Rendimento Diário & Lotes (Nubank / Mercado Pago)
+                  </div>
+                </div>
+                <div style={{ padding: '8px 16px', background: 'var(--color-surface-2)', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', color: 'var(--color-primary)' }}>
+                  Acessar →
+                </div>
               </div>
             </Link>
           </section>
