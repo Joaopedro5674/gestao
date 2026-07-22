@@ -191,12 +191,27 @@ export async function POST(request: Request) {
 
     try {
         const body = await request.json();
-        const { loan_id, mes_id, type } = body;
+        let { loan_id, mes_id, type, command, text, message: inputMsg } = body;
 
-        const targetId = loan_id || body.id;
+        const rawCmd = command || text || inputMsg || (typeof body === 'string' ? body : '');
+        if (typeof rawCmd === 'string' && rawCmd.startsWith('pago:')) {
+            const parts = rawCmd.split(':');
+            if (parts.length >= 2) {
+                const parsedId = parts[1];
+                const parsedType = parts[2] || 'emprestimo';
+                if (parsedType === 'mes') {
+                    mes_id = parsedId;
+                } else {
+                    loan_id = parsedId;
+                }
+                type = parsedType;
+            }
+        }
+
+        const targetId = loan_id || mes_id || body.id;
 
         if (!targetId) {
-            return NextResponse.json({ error: 'ID do empréstimo ou mês é obrigatório' }, { status: 400 });
+            return NextResponse.json({ error: 'ID do empréstimo ou mês é obrigatório (ou envie command no formato pago:ID:tipo)' }, { status: 400 });
         }
 
         // Check if mes_id or if type is 'mes'
