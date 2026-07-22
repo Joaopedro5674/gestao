@@ -25,6 +25,7 @@ interface LotEvaluatedState {
         notes?: string;
         rule_version?: {
             indexer_percentage: number;
+            tier_cap_limit?: number;
             product?: {
                 name: string;
                 bank?: {
