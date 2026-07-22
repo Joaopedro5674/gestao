@@ -941,14 +941,17 @@ export default function CapitalPage() {
                                                 <input
                                                     type="number"
                                                     className="input"
-                                                    placeholder="10000"
+                                                    placeholder="Sem limite (Deixe em branco)"
                                                     value={newProductForm.tier_cap_limit}
                                                     onChange={(e) => setNewProductForm({ ...newProductForm, tier_cap_limit: e.target.value })}
                                                 />
+                                                <span style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)' }}>
+                                                    * Deixe em branco se o banco render 100% sem teto.
+                                                </span>
                                             </div>
                                         </div>
                                         <div className="form-group">
-                                            <label className="label">% CDI Excedente</label>
+                                            <label className="label">% CDI Excedente (Opcional)</label>
                                             <input
                                                 type="number"
                                                 className="input"
