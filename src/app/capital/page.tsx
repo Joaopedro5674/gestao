@@ -964,12 +964,13 @@ export default function CapitalPage() {
                                             <label className="label">Regra de Tributação / IOF</label>
                                             <select
                                                 className="input"
+                                                style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', paddingRight: '24px', fontSize: '0.85rem' }}
                                                 value={newProductForm.tax_type}
                                                 onChange={(e) => setNewProductForm({ ...newProductForm, tax_type: e.target.value })}
                                             >
-                                                <option value="STANDARD">🔴 CDB Padrão (Cobram IOF + IR Regressivo) — Ex: Nubank</option>
-                                                <option value="NO_IOF">🟡 Sem IOF (Apenas IR Regressivo) — Ex: Mercado Pago</option>
-                                                <option value="EXEMPT">🟢 100% Isento (Sem IOF e Sem IR) — Ex: LCI / LCA</option>
+                                                <option value="STANDARD">🔴 CDB Padrão (IOF + IR Regressivo)</option>
+                                                <option value="NO_IOF">🟡 Sem IOF (Apenas IR Regressivo)</option>
+                                                <option value="EXEMPT">🟢 100% Isento (LCI / LCA)</option>
                                             </select>
                                         </div>
                                         <button type="submit" className="btn btn-primary" style={{ fontWeight: 700 }}>
