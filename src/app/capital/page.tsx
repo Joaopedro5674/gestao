@@ -315,6 +315,9 @@ export default function CapitalPage() {
                 setAporteForm({ bankId: '', productId: '', productRuleVersionId: '', amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
                 fetchData();
             }
+        } catch (err) {
+            console.error("Erro ao criar aporte:", err);
+        }
     };
 
     const handleCreateResgate = async (e: React.FormEvent) => {
