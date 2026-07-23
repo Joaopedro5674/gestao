@@ -28,7 +28,9 @@ interface LotEvaluatedState {
             tier_cap_limit?: number;
             product?: {
                 name: string;
+                bank_id?: string;
                 bank?: {
+                    id?: string;
                     name: string;
                     brand_color: string;
                 };
@@ -116,6 +118,7 @@ export default function CapitalPage() {
     const [replayDate, setReplayDate] = useState(new Date().toISOString().split('T')[0]);
     const [conciliationHistory, setConciliationHistory] = useState<any[]>([]);
     const [historyList, setHistoryList] = useState<any[]>([]);
+    const [selectedBankFilter, setSelectedBankFilter] = useState<string>('ALL');
 
     const fetchData = async () => {
         setLoading(true);
@@ -557,7 +560,15 @@ export default function CapitalPage() {
                 {/* CARDS DE INSTITUIÇÕES */}
                 <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: 'var(--space-xl)' }}>
                     {banks.map((b) => (
-                        <div key={b.bank_id} className="card hover-primary" style={{ padding: '20px', borderLeft: `5px solid ${b.brand_color}` }}>
+                        <div 
+                            key={b.bank_id} 
+                            className="card hover-primary" 
+                            onClick={() => {
+                                setSelectedBankFilter(b.bank_id);
+                                setActiveTab('lotes');
+                            }}
+                            style={{ padding: '20px', borderLeft: `5px solid ${b.brand_color}`, cursor: 'pointer' }}
+                        >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                                 <span style={{ fontWeight: 800, fontSize: '1.1rem' }}>{b.bank_name}</span>
                                 <span style={{ fontSize: '0.7rem', background: 'var(--color-surface-2)', padding: '3px 8px', borderRadius: '12px', fontWeight: 700 }}>
@@ -572,7 +583,10 @@ export default function CapitalPage() {
                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                     {b.lot_count > 1 && (
                                         <button
-                                            onClick={() => handleConsolidateBankLots(b.bank_id, b.bank_name)}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleConsolidateBankLots(b.bank_id, b.bank_name);
+                                            }}
                                             style={{ background: 'rgba(130, 10, 209, 0.15)', border: '1px solid rgba(130, 10, 209, 0.3)', color: '#a855f7', fontWeight: 700, cursor: 'pointer', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '6px' }}
                                             title="Unificar e limpar lotes fragmentados"
                                         >
@@ -580,7 +594,8 @@ export default function CapitalPage() {
                                         </button>
                                     )}
                                     <button
-                                        onClick={() => {
+                                        onClick={(e) => {
+                                            e.stopPropagation();
                                             setSelectedConciliateBank(b);
                                             setActiveTab('conciliacao');
                                         }}
@@ -649,7 +664,36 @@ export default function CapitalPage() {
                 {/* ABA 1: LOTES INDEPENDENTES */}
                 {activeTab === 'lotes' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {lots.map((s) => (
+                        {/* FILTRO POR BANCO */}
+                        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', marginBottom: '8px' }}>
+                            <button
+                                onClick={() => setSelectedBankFilter('ALL')}
+                                style={{
+                                    padding: '6px 14px', borderRadius: '20px', border: '1px solid var(--color-border)',
+                                    background: selectedBankFilter === 'ALL' ? 'var(--color-primary)' : 'var(--color-surface-2)',
+                                    color: selectedBankFilter === 'ALL' ? 'white' : 'var(--color-text-secondary)',
+                                    fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap'
+                                }}
+                            >
+                                🏢 Todos os Bancos ({lots.length})
+                            </button>
+                            {banks.map(b => (
+                                <button
+                                    key={b.bank_id}
+                                    onClick={() => setSelectedBankFilter(b.bank_id)}
+                                    style={{
+                                        padding: '6px 14px', borderRadius: '20px', border: `1px solid ${b.brand_color}`,
+                                        background: selectedBankFilter === b.bank_id ? b.brand_color : 'var(--color-surface-2)',
+                                        color: selectedBankFilter === b.bank_id ? 'white' : 'var(--color-text-primary)',
+                                        fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap'
+                                    }}
+                                >
+                                    {b.bank_name} ({b.lot_count})
+                                </button>
+                            ))}
+                        </div>
+
+                        {(selectedBankFilter === 'ALL' ? lots : lots.filter(s => s.lot.rule_version?.product?.bank_id === selectedBankFilter || s.lot.rule_version?.product?.bank?.id === selectedBankFilter)).map((s) => (
                             <div key={s.lot.id} className="card" style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                                 <div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
