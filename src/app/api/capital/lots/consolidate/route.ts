@@ -6,7 +6,7 @@ import { IndexerEngine } from '@/engine/indexerEngine';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { bank_id } = body;
+        const { bank_id, mode } = body; // mode: 'adjustments_only' (default) or 'all'
 
         if (!bank_id) {
             return NextResponse.json({ error: 'bank_id é obrigatório para consolidação' }, { status: 400 });
@@ -49,18 +49,29 @@ export async function POST(request: Request) {
 
         // Associate versions & filter by bank_id
         const bankProductIds = (products || []).map(p => p.id);
-        const candidateLots = (rawLots || []).filter(lot => {
+        const allBankLots = (rawLots || []).filter(lot => {
             const version = (ruleVersions || []).find(v => v.id === lot.product_rule_version_id);
             if (!version) return false;
             lot.rule_version = version;
             return bankProductIds.includes(version.product_id);
         });
 
-        if (candidateLots.length === 0) {
+        if (allBankLots.length === 0) {
             return NextResponse.json({ error: 'Nenhum lote ativo encontrado para consolidar neste banco.' }, { status: 404 });
         }
 
-        // Evaluate state of each candidate lot today and compute total net balance
+        // Intelligently determine candidate lots to consolidate
+        let candidateLots = allBankLots;
+        const isAdjustmentsOnly = mode !== 'all';
+
+        if (isAdjustmentsOnly) {
+            const adjustmentLots = allBankLots.filter(l => l.notes && l.notes.toLowerCase().includes('ajuste'));
+            if (adjustmentLots.length > 0) {
+                candidateLots = adjustmentLots;
+            }
+        }
+
+        // Evaluate state of candidate lots today and compute total net balance
         let totalNetBalance = 0;
         for (const lot of candidateLots) {
             const state = ruleEngine.evaluateLot(lot, todayStr, cdiRate);
@@ -69,14 +80,10 @@ export async function POST(request: Request) {
 
         totalNetBalance = Math.round(totalNetBalance * 100) / 100;
 
-        if (totalNetBalance <= 0) {
-            return NextResponse.json({ error: 'Saldo total consolidado é igual ou menor que zero.' }, { status: 400 });
-        }
-
         const nowIso = new Date().toISOString();
         const dateFormatted = new Date().toLocaleDateString('pt-BR');
 
-        // Close all old candidate lots
+        // Close old candidate lots
         const oldLotIds = candidateLots.map(l => l.id);
         const { error: closeErr } = await supabaseAdmin
             .from('investment_lots')
@@ -95,6 +102,10 @@ export async function POST(request: Request) {
         }
 
         const userId = '00000000-0000-0000-0000-000000000000';
+        const isOnlyAdjust = candidateLots.every(l => l.notes && l.notes.toLowerCase().includes('ajuste'));
+        const noteText = isOnlyAdjust 
+            ? `Ajuste Consolidado em ${dateFormatted}`
+            : `Lote Consolidado em ${dateFormatted} (${candidateLots.length} lotes unificados)`;
 
         // Insert new consolidated lot
         const { data: newLot, error: insErr } = await supabaseAdmin
@@ -106,7 +117,7 @@ export async function POST(request: Request) {
                 initial_principal: totalNetBalance,
                 current_balance: totalNetBalance,
                 status: 'ACTIVE',
-                notes: `Lote Consolidado em ${dateFormatted} (${candidateLots.length} lotes unificados)`
+                notes: noteText
             })
             .select()
             .single();
@@ -117,6 +128,7 @@ export async function POST(request: Request) {
             success: true,
             consolidated_balance: totalNetBalance,
             closed_count: candidateLots.length,
+            is_only_adjustments: isOnlyAdjust,
             new_lot: newLot
         });
     } catch (err: any) {
