@@ -114,6 +114,8 @@ export default function CapitalPage() {
 
     // Time Machine State
     const [replayDate, setReplayDate] = useState(new Date().toISOString().split('T')[0]);
+    const [conciliationHistory, setConciliationHistory] = useState<any[]>([]);
+    const [historyList, setHistoryList] = useState<any[]>([]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -142,10 +144,37 @@ export default function CapitalPage() {
                 const concData = await conciliateRes.json();
                 setConciliationHistory(concData.metrics || []);
             }
+
+            const historyRes = await fetch('/api/capital/history');
+            if (historyRes.ok) {
+                const histData = await historyRes.json();
+                setHistoryList(histData.history || []);
+            }
         } catch (err) {
             console.error("Erro ao carregar dados do Módulo CAPITAL:", err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleConsolidateBankLots = async (bankId: string, bankName: string) => {
+        if (!confirm(`Deseja consolidar todos os lotes ativos do ${bankName} em 1 único lote limpo?`)) return;
+        try {
+            const res = await fetch('/api/capital/lots/consolidate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bank_id: bankId })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                alert(`✨ Lotes do ${bankName} consolidados com sucesso em R$ ${data.consolidated_balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}!`);
+                fetchData();
+            } else {
+                const errData = await res.json();
+                alert(`Erro ao consolidar: ${errData.error}`);
+            }
+        } catch (err) {
+            console.error('Erro ao consolidar lotes:', err);
         }
     };
 
@@ -274,8 +303,6 @@ export default function CapitalPage() {
         if (!showValues) return '••••••••';
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
     };
-
-    const [conciliationHistory, setConciliationHistory] = useState<any[]>([]);
 
     const parseCurrencyInput = (valStr: string): number => {
         if (!valStr) return 0;
@@ -540,17 +567,28 @@ export default function CapitalPage() {
                             <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: '8px' }}>
                                 {formatBRL(b.net_balance)}
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
                                 <span>Hoje: <strong style={{ color: 'var(--color-success)' }}>+{formatBRL(b.daily_yield_net)}</strong></span>
-                                <button
-                                    onClick={() => {
-                                        setSelectedConciliateBank(b);
-                                        setActiveTab('conciliacao');
-                                    }}
-                                    style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 700, cursor: 'pointer', fontSize: '0.75rem' }}
-                                >
-                                    Conciliar →
-                                </button>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    {b.lot_count > 1 && (
+                                        <button
+                                            onClick={() => handleConsolidateBankLots(b.bank_id, b.bank_name)}
+                                            style={{ background: 'rgba(130, 10, 209, 0.15)', border: '1px solid rgba(130, 10, 209, 0.3)', color: '#a855f7', fontWeight: 700, cursor: 'pointer', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '6px' }}
+                                            title="Unificar e limpar lotes fragmentados"
+                                        >
+                                            ✨ Consolidar
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => {
+                                            setSelectedConciliateBank(b);
+                                            setActiveTab('conciliacao');
+                                        }}
+                                        style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 700, cursor: 'pointer', fontSize: '0.75rem' }}
+                                    >
+                                        Conciliar →
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -626,9 +664,19 @@ export default function CapitalPage() {
                                                 🔮 Faixa Limitada (até R$ {s.lot.rule_version.tier_cap_limit.toLocaleString('pt-BR')})
                                             </span>
                                         )}
-                                        {s.iofRatePercent === 0 && (
+                                        {s.calendarDays >= 30 ? (
                                             <span style={{ fontSize: '0.7rem', background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                                                🛡️ Isento de IOF
+                                                🟢 IOF Zerado (30+ dias)
+                                            </span>
+                                        ) : (
+                                            <span style={{ fontSize: '0.7rem', background: 'rgba(234, 179, 8, 0.15)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.3)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                                                ⏳ IOF Zera em {30 - s.calendarDays} dia(s) ({
+                                                    (() => {
+                                                        const dep = new Date(s.lot.deposit_date);
+                                                        dep.setDate(dep.getDate() + 30);
+                                                        return dep.toLocaleDateString('pt-BR');
+                                                    })()
+                                                })
                                             </span>
                                         )}
                                     </div>
@@ -850,6 +898,39 @@ export default function CapitalPage() {
                                             <div style={{ textAlign: 'right' }}>
                                                 <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', display: 'block' }}>Saldo Líquido</span>
                                                 <strong style={{ fontSize: '1.1rem', color: 'var(--color-primary)' }}>{formatBRL(s.netBalance)}</strong>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* HISTÓRICO DE SNAPSHOTS DIÁRIOS */}
+                        {historyList.length > 0 && (
+                            <div style={{ marginTop: '28px', paddingTop: '20px', borderTop: '1px solid var(--color-border)' }}>
+                                <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '14px' }}>📊 Histórico & Snapshots Diários de Patrimônio</h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    {historyList.map((h: any) => (
+                                        <div key={h.snapshot_date} style={{
+                                            padding: '12px 16px', background: 'var(--color-surface-1)', borderRadius: '10px',
+                                            border: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'
+                                        }}>
+                                            <div>
+                                                <strong style={{ fontSize: '0.95rem' }}>{new Date(h.snapshot_date + 'T12:00:00').toLocaleDateString('pt-BR')}</strong>
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginLeft: '10px' }}>
+                                                    ({h.lot_count} lotes rastreados)
+                                                </span>
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                                                    Bruto: {formatBRL(h.total_gross_balance)} | IOF: {formatBRL(h.total_iof_accumulated)} | IR: {formatBRL(h.total_ir_accumulated)}
+                                                </div>
+                                            </div>
+
+                                            <div style={{ textAlign: 'right' }}>
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', display: 'block' }}>Patrimônio Líquido</span>
+                                                <strong style={{ fontSize: '1.1rem', color: 'var(--color-primary)' }}>{formatBRL(h.total_net_balance)}</strong>
+                                                <div style={{ fontSize: '0.75rem', color: '#22c55e', fontWeight: 700 }}>
+                                                    +{formatBRL(h.total_daily_yield_net)} hoje
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
