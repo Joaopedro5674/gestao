@@ -68,10 +68,8 @@ export async function POST(request: Request) {
                 targetVersionId = versions?.[0]?.id || '55555555-5555-5555-5555-555555555555';
             }
 
-            // Set deposit_date to 1 day prior (yesterday) so that BOTH net_balance AND daily_yield_net update automatically for today!
-            const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
-            const depDate = `${yesterday.toISOString().split('T')[0]}T12:00:00.000Z`;
+            // Set deposit_date to current date so that on conciliation day the net balance matches the reported balance exactly, avoiding double yield compounding on day 1
+            const depDate = new Date().toISOString();
 
             await supabaseAdmin.from('investment_lots').insert({
                 user_id: userId,
