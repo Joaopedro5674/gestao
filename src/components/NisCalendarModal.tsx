@@ -22,6 +22,17 @@ export default function NisCalendarModal({ isOpen, onClose, onSaveSuccess }: Nis
 
     useEffect(() => {
         if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (isOpen) {
             const fetchNisDates = async () => {
                 setLoading(true);
                 try {
@@ -84,24 +95,22 @@ export default function NisCalendarModal({ isOpen, onClose, onSaveSuccess }: Nis
 
     return (
         <div style={{
-            position: 'fixed',
-            top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,0.75)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 99999,
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            width: '100vw', height: '100dvh',
+            background: 'rgba(0, 0, 0, 0.8)', zIndex: 999999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '12px 12px calc(12px + env(safe-area-inset-bottom, 0px))',
-            backdropFilter: 'blur(8px)',
-            overflowY: 'auto'
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            overflow: 'hidden'
         }}>
-            <div className="card shadow-lg" style={{
-                width: '100%',
-                maxWidth: '480px',
+            <div className="card shadow-lg animate-fade-in" style={{
+                width: '100%', maxWidth: '480px',
+                maxHeight: 'calc(100dvh - 32px - env(safe-area-inset-bottom, 0px))',
+                overflowY: 'auto',
                 padding: 'var(--space-lg)',
                 position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
+                display: 'flex', flexDirection: 'column',
                 gap: 'var(--space-md)'
             }}>
                 <button

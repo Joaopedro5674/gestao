@@ -272,6 +272,17 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
     const { showToast } = useToast();
 
     useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isOpen]);
+
+    useEffect(() => {
         try {
             sessionStorage.setItem(STORAGE_KEY, JSON.stringify(simulacoes));
         } catch { /* ignore */ }
@@ -425,19 +436,22 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
     return (
         <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0, 0, 0, 0.75)', zIndex: 99999,
+            width: '100vw', height: '100dvh',
+            background: 'rgba(0, 0, 0, 0.8)', zIndex: 999999,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '12px 12px calc(12px + env(safe-area-inset-bottom, 0px))',
-            backdropFilter: 'blur(8px)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
             overflow: 'hidden'
         }}>
-            <div className="card shadow-lg" style={{
+            <div className="card shadow-lg animate-fade-in" style={{
                 width: '100%', maxWidth: '600px',
                 background: 'var(--color-surface-1)',
                 borderRadius: '16px',
                 border: '1px solid var(--color-border)',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
-                maxHeight: 'calc(100vh - 24px - env(safe-area-inset-bottom, 0px))',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+                maxHeight: 'calc(100dvh - 32px - env(safe-area-inset-bottom, 0px))',
+                height: 'auto',
                 display: 'flex', flexDirection: 'column', overflow: 'hidden',
                 padding: 0
             }}>
