@@ -52,7 +52,7 @@ export default function LoansPage() {
     }
 
     return (
-        <div className="container">
+        <div className="container animate-fade-in">
             <header style={{ marginBottom: 'var(--space-lg)' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
                     <div>

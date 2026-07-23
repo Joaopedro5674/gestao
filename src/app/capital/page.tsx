@@ -472,7 +472,7 @@ export default function CapitalPage() {
 
     return (
         <main style={{ minHeight: '100vh', background: 'var(--color-background)', padding: 'var(--space-md) 0' }}>
-            <div className="container" style={{ maxWidth: '1050px' }}>
+            <div className="container animate-fade-in" style={{ maxWidth: '1050px' }}>
                 {/* Header */}
                 <header style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: 'var(--space-lg)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>

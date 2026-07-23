@@ -16,7 +16,7 @@ export default function PropertiesPage() {
     }
 
     return (
-        <div className="container">
+        <div className="container animate-fade-in">
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-lg)' }}>
                 <h1>Meus Imóveis</h1>
                 <Link href="/properties/new" className="btn btn-primary" style={{ padding: '0.5rem 1rem' }}>

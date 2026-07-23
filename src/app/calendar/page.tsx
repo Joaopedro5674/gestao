@@ -172,7 +172,7 @@ export default function CalendarPage() {
     }
 
     return (
-        <div className={styles.container}>
+        <div className={`${styles.container} animate-fade-in`}>
             <h1 className={styles.headerTitle}>Calendário de Vencimentos</h1>
 
             {/* Cards Superiores */}
