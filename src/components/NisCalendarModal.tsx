@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Calendar, Save, RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/components/ToastProvider";
@@ -12,9 +13,14 @@ interface NisCalendarModalProps {
 }
 
 export default function NisCalendarModal({ isOpen, onClose, onSaveSuccess }: NisCalendarModalProps) {
+    const [mounted, setMounted] = useState(false);
     const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
     const [nisMap, setNisMap] = useState<Record<number, number>>({
         1: 18, 2: 19, 3: 20, 4: 21, 5: 22,
         6: 25, 7: 26, 8: 27, 9: 28, 0: 29
@@ -91,9 +97,9 @@ export default function NisCalendarModal({ isOpen, onClose, onSaveSuccess }: Nis
         setNisMap(prev => ({ ...prev, [nis]: parsed }));
     };
 
-    if (!isOpen) return null;
+    if (!isOpen || !mounted) return null;
 
-    return (
+    return createPortal(
         <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
             width: '100vw', height: '100dvh',
@@ -218,6 +224,7 @@ export default function NisCalendarModal({ isOpen, onClose, onSaveSuccess }: Nis
                     </form>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

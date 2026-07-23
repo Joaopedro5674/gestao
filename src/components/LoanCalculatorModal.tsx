@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Calculator, Info, Plus, Trash2, TrendingUp, Share2, Save, Check, CreditCard, DollarSign, Calendar, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/ToastProvider";
@@ -266,10 +267,15 @@ function loadFromStorage(): Simulacao[] {
 }
 
 export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorModalProps) {
+    const [mounted, setMounted] = useState(false);
     const [simulacoes, setSimulacoes] = useState<Simulacao[]>(loadFromStorage);
     const [savingId, setSavingId] = useState<number | null>(null);
     const { adicionarEmprestimo, nisCalendar } = useApp();
     const { showToast } = useToast();
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     useEffect(() => {
         if (isOpen) {
@@ -431,9 +437,9 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
     const hasValidResults = validResults.length > 0;
     const unsavedValidCount = validResults.filter(r => !r.sim.salvo && r.sim.nome.trim()).length;
 
-    if (!isOpen) return null;
+    if (!isOpen || !mounted) return null;
 
-    return (
+    return createPortal(
         <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
             width: '100vw', height: '100dvh',
@@ -1011,7 +1017,8 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 
