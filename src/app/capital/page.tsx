@@ -610,12 +610,16 @@ export default function CapitalPage() {
                 </section>
 
                 {/* ABAS NAVEGAÇÃO */}
-                <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--color-border)', marginBottom: '20px' }}>
+                <div style={{
+                    display: 'flex', gap: '6px', borderBottom: '1px solid var(--color-border)', marginBottom: '20px',
+                    overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none',
+                    paddingBottom: '2px', width: '100%', maxWidth: '100%'
+                }}>
                     <button
                         onClick={() => setActiveTab('lotes')}
                         style={{
-                            padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer',
-                            fontWeight: 700, fontSize: '0.9rem',
+                            padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
+                            fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'nowrap', flexShrink: 0,
                             color: activeTab === 'lotes' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
                             borderBottom: activeTab === 'lotes' ? '2px solid var(--color-primary)' : '2px solid transparent',
                             display: 'flex', alignItems: 'center', gap: '6px'
@@ -626,8 +630,8 @@ export default function CapitalPage() {
                     <button
                         onClick={() => setActiveTab('conciliacao')}
                         style={{
-                            padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer',
-                            fontWeight: 700, fontSize: '0.9rem',
+                            padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
+                            fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'nowrap', flexShrink: 0,
                             color: activeTab === 'conciliacao' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
                             borderBottom: activeTab === 'conciliacao' ? '2px solid var(--color-primary)' : '2px solid transparent',
                             display: 'flex', alignItems: 'center', gap: '6px'
@@ -638,8 +642,8 @@ export default function CapitalPage() {
                     <button
                         onClick={() => setActiveTab('timemachine')}
                         style={{
-                            padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer',
-                            fontWeight: 700, fontSize: '0.9rem',
+                            padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
+                            fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'nowrap', flexShrink: 0,
                             color: activeTab === 'timemachine' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
                             borderBottom: activeTab === 'timemachine' ? '2px solid var(--color-primary)' : '2px solid transparent',
                             display: 'flex', alignItems: 'center', gap: '6px'
@@ -650,8 +654,8 @@ export default function CapitalPage() {
                     <button
                         onClick={() => setActiveTab('regras')}
                         style={{
-                            padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer',
-                            fontWeight: 700, fontSize: '0.9rem',
+                            padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
+                            fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'nowrap', flexShrink: 0,
                             color: activeTab === 'regras' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
                             borderBottom: activeTab === 'regras' ? '2px solid var(--color-primary)' : '2px solid transparent',
                             display: 'flex', alignItems: 'center', gap: '6px'
