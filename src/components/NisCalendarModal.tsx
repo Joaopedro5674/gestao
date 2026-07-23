@@ -85,16 +85,15 @@ export default function NisCalendarModal({ isOpen, onClose, onSaveSuccess }: Nis
     return (
         <div style={{
             position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.5)',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.75)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000,
-            backdropFilter: 'blur(4px)'
+            zIndex: 99999,
+            padding: '12px 12px calc(12px + env(safe-area-inset-bottom, 0px))',
+            backdropFilter: 'blur(8px)',
+            overflowY: 'auto'
         }}>
             <div className="card shadow-lg" style={{
                 width: '100%',

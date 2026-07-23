@@ -61,38 +61,38 @@ export default function LoansPage() {
                             {counts.ativos} ativo{counts.ativos !== 1 ? 's' : ''} · {counts.pagos} pago{counts.pagos !== 1 ? 's' : ''}
                         </span>
                     </div>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
                         <button
                             onClick={() => setIsNisCalendarOpen(true)}
                             className="btn"
                             style={{
-                                padding: '0.4rem 0.75rem',
+                                padding: '0.5rem 0.6rem',
                                 background: 'var(--color-surface-2)',
+                                color: 'var(--color-text-primary)',
                                 border: '1px solid var(--color-border)',
-                                fontSize: '0.75rem',
+                                fontSize: '0.8rem',
                                 fontWeight: 700,
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '4px',
-                                flex: '1 1 auto',
+                                gap: '5px',
                                 justifyContent: 'center'
                             }}
                         >
-                            <Calendar size={15} /> NIS
+                            <Calendar size={15} style={{ color: 'var(--color-primary)' }} /> NIS
                         </button>
                         <button
                             onClick={() => setIsCalculatorOpen(true)}
                             className="btn"
                             style={{
-                                padding: '0.4rem 0.75rem',
-                                background: 'var(--color-surface-2)',
-                                border: '1px solid var(--color-border)',
-                                fontSize: '0.75rem',
+                                padding: '0.5rem 0.6rem',
+                                background: 'rgba(99, 102, 241, 0.15)',
+                                color: 'var(--color-primary)',
+                                border: '1px solid rgba(99, 102, 241, 0.3)',
+                                fontSize: '0.8rem',
                                 fontWeight: 700,
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '4px',
-                                flex: '1 1 auto',
+                                gap: '5px',
                                 justifyContent: 'center'
                             }}
                         >
@@ -102,22 +102,21 @@ export default function LoansPage() {
                             href="/loans/new?type=cartao"
                             className="btn"
                             style={{
-                                padding: '0.4rem 0.75rem',
+                                padding: '0.5rem 0.6rem',
                                 background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
                                 color: 'white',
                                 border: 'none',
-                                fontSize: '0.75rem',
+                                fontSize: '0.8rem',
                                 fontWeight: 700,
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '4px',
-                                flex: '1 1 auto',
+                                gap: '5px',
                                 justifyContent: 'center'
                             }}
                         >
                             <Plus size={15} /> Cartão
                         </Link>
-                        <Link href="/loans/new" className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', fontWeight: 700, flex: '1 1 auto', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Link href="/loans/new" className="btn btn-primary" style={{ padding: '0.5rem 0.6rem', fontSize: '0.8rem', fontWeight: 700, justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '5px' }}>
                             <Plus size={15} /> Comum
                         </Link>
                     </div>

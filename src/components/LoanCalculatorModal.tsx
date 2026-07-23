@@ -424,26 +424,39 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
 
     return (
         <div style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
-            backdropFilter: 'blur(6px)'
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0, 0, 0, 0.75)', zIndex: 99999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '12px 12px calc(12px + env(safe-area-inset-bottom, 0px))',
+            backdropFilter: 'blur(8px)',
+            overflow: 'hidden'
         }}>
-            <div className="card" style={{
-                width: '100%', maxWidth: '580px', background: 'var(--color-surface-1)',
-                padding: '24px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.2)',
-                maxHeight: '90vh', overflowY: 'auto', borderRadius: 'var(--radius-lg)'
+            <div className="card shadow-lg" style={{
+                width: '100%', maxWidth: '600px',
+                background: 'var(--color-surface-1)',
+                borderRadius: '16px',
+                border: '1px solid var(--color-border)',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
+                maxHeight: 'calc(100vh - 24px - env(safe-area-inset-bottom, 0px))',
+                display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                padding: 0
             }}>
-                {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-primary)' }}>
-                        <Calculator size={24} style={{ color: 'var(--color-primary)' }} />Simulador de Juros & Cartões
+                {/* Sticky Header */}
+                <div style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '16px 20px', background: 'var(--color-surface-1)',
+                    borderBottom: '1px solid var(--color-border)', flexShrink: 0
+                }}>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-primary)', margin: 0 }}>
+                        <Calculator size={22} style={{ color: 'var(--color-primary)' }} />Simulador de Juros & Cartões
                     </h3>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)' }}>
+                    <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '4px' }}>
                         <X size={22} />
                     </button>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* Scrollable Body */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', WebkitOverflowScrolling: 'touch' }}>
                     {/* Simulation Cards */}
                     {simulacoes.map((sim, index) => {
                         const result = calcularSimulacao(sim, nisCalendar);
@@ -955,8 +968,15 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
                     <div style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', textAlign: 'center', fontStyle: 'italic' }}>
                         * Cálculos de cartão utilizam a regra oficial de vencimento NIS do Supabase.
                     </div>
+                </div>
 
-                    {/* Action Buttons */}
+                {/* Sticky Footer */}
+                <div style={{
+                    padding: '12px 20px calc(12px + env(safe-area-inset-bottom, 0px))',
+                    background: 'var(--color-surface-1)',
+                    borderTop: '1px solid var(--color-border)',
+                    flexShrink: 0
+                }}>
                     <div style={{ display: 'grid', gridTemplateColumns: hasValidResults ? '1fr 1fr' : '1fr', gap: '8px' }}>
                         {hasValidResults && (
                             <button
@@ -971,7 +991,7 @@ export default function LoanCalculatorModal({ isOpen, onClose }: LoanCalculatorM
                                 <Share2 size={16} /> Compartilhar WhatsApp
                             </button>
                         )}
-                        <button onClick={onClose} className="btn btn-full" style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
+                        <button onClick={onClose} className="btn btn-full" style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: '8px', fontWeight: 700 }}>
                             Fechar
                         </button>
                     </div>
