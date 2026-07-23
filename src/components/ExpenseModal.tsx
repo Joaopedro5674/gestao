@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { AlertCircle, DollarSign, FileText, X } from "lucide-react";
 
 interface ExpenseModalProps {
@@ -16,11 +17,27 @@ export default function ExpenseModal({
     onSave,
     monthLabel
 }: ExpenseModalProps) {
+    const [mounted, setMounted] = useState(false);
     const [descricao, setDescricao] = useState("");
     const [valor, setValor] = useState("");
     const [loading, setLoading] = useState(false);
 
-    if (!isOpen) return null;
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isOpen]);
+
+    if (!isOpen || !mounted) return null;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -42,20 +59,16 @@ export default function ExpenseModal({
         }
     };
 
-    return (
-        <div className="modal-overlay" style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px',
-            backdropFilter: 'blur(4px)'
+    return createPortal(
+        <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            width: '100vw', height: '100dvh',
+            background: 'rgba(0, 0, 0, 0.8)', zIndex: 999999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '12px 12px calc(12px + env(safe-area-inset-bottom, 0px))',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            overflow: 'hidden'
         }}>
             <div className="modal-content" style={{
                 background: 'var(--color-bg)',
@@ -108,6 +121,7 @@ export default function ExpenseModal({
                             <input
                                 type="number"
                                 step="0.01"
+                                inputMode="decimal"
                                 value={valor}
                                 onChange={e => setValor(e.target.value)}
                                 placeholder="0,00"
@@ -152,6 +166,7 @@ export default function ExpenseModal({
                     to { transform: translateY(0); opacity: 1; }
                 }
             `}</style>
-        </div>
+        </div>,
+        document.body
     );
 }

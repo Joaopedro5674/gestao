@@ -1,7 +1,8 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { AlertCircle, CheckCircle, X, HelpCircle } from "lucide-react";
 
 interface ConfirmationModalProps {
@@ -25,9 +26,25 @@ export default function ConfirmationModal({
     cancelText = "Cancelar",
     variant = 'success'
 }: ConfirmationModalProps) {
+    const [mounted, setMounted] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    if (!isOpen) return null;
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isOpen]);
+
+    if (!isOpen || !mounted) return null;
 
     const handleConfirm = async () => {
         if (loading) return;
@@ -63,30 +80,25 @@ export default function ConfirmationModal({
 
     const color = getColor();
 
-    return (
-        <div className="modal-overlay" style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px',
-            backdropFilter: 'blur(4px)'
+    return createPortal(
+        <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            width: '100vw', height: '100dvh',
+            background: 'rgba(0, 0, 0, 0.8)', zIndex: 999999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '12px 12px calc(12px + env(safe-area-inset-bottom, 0px))',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            overflow: 'hidden'
         }}>
-            <div className="modal-content" style={{
-                background: 'var(--color-bg)',
+            <div className="card shadow-lg animate-fade-in" style={{
+                background: 'var(--color-surface-1)',
                 borderRadius: 'var(--radius-lg)',
                 width: '100%',
                 maxWidth: '400px',
                 padding: 'var(--space-lg)',
-                boxShadow: 'var(--shadow-lg)',
-                border: '1px solid var(--color-border)',
-                animation: 'modalSlideIn 0.3s ease-out'
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+                border: '1px solid var(--color-border)'
             }}>
                 <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-md)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: color }}>
@@ -130,12 +142,7 @@ export default function ConfirmationModal({
                     </button>
                 </footer>
             </div>
-            <style jsx>{`
-                @keyframes modalSlideIn {
-                    from { transform: translateY(20px); opacity: 0; }
-                    to { transform: translateY(0); opacity: 1; }
-                }
-            `}</style>
-        </div>
+        </div>,
+        document.body
     );
 }

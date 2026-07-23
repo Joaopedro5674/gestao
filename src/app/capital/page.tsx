@@ -1265,8 +1265,8 @@ export default function CapitalPage() {
 
             {/* MODAL EDITAR BANCO */}
             {editingBank && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', backdropFilter: 'blur(4px)' }}>
-                    <div className="card" style={{ width: '100%', maxWidth: '420px', padding: '24px' }}>
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100dvh', background: 'rgba(0,0,0,0.8)', zIndex: 999999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 12px calc(12px + env(safe-area-inset-bottom, 0px))', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', overflow: 'hidden' }}>
+                    <div className="card shadow-lg animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px' }}>
                         <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '16px' }}>Editar Banco</h3>
                         <form onSubmit={handleEditBankSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                             <div className="form-group">
@@ -1304,8 +1304,8 @@ export default function CapitalPage() {
 
             {/* MODAL NOVO APORTE */}
             {isAporteModalOpen && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', backdropFilter: 'blur(4px)' }}>
-                    <div className="card" style={{ width: '95%', maxWidth: '560px', padding: '24px' }}>
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100dvh', background: 'rgba(0,0,0,0.8)', zIndex: 999999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 12px calc(12px + env(safe-area-inset-bottom, 0px))', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', overflow: 'hidden' }}>
+                    <div className="card shadow-lg animate-fade-in" style={{ width: '95%', maxWidth: '560px', padding: '24px' }}>
                         <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '16px' }}>Novo Aporte em Lote</h3>
                         <form onSubmit={handleCreateAporte} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                             <div className="form-group">
@@ -1335,6 +1335,7 @@ export default function CapitalPage() {
                                 <label className="label">Valor Depositado (R$)</label>
                                 <input
                                     type="text"
+                                    inputMode="decimal"
                                     className="input"
                                     placeholder="Ex: 50.000,00"
                                     value={aporteForm.amount}
@@ -1378,8 +1379,8 @@ export default function CapitalPage() {
 
             {/* MODAL EFETUAR RESGATE */}
             {isResgateModalOpen && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', backdropFilter: 'blur(4px)' }}>
-                    <div className="card" style={{ width: '95%', maxWidth: '500px', padding: '24px' }}>
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100dvh', background: 'rgba(0,0,0,0.8)', zIndex: 999999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 12px calc(12px + env(safe-area-inset-bottom, 0px))', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', overflow: 'hidden' }}>
+                    <div className="card shadow-lg animate-fade-in" style={{ width: '95%', maxWidth: '500px', padding: '24px' }}>
                         <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '16px' }}>💸 Efetuar Resgate / Retirada</h3>
                         <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
                             O resgate consome automaticamente o aporte <strong>mais antigo (FIFO)</strong> da instituição para otimizar e reduzir o Imposto de Renda e IOF pagos.
@@ -1405,6 +1406,7 @@ export default function CapitalPage() {
                                 <label className="label">Valor a Resgatar (R$)</label>
                                 <input
                                     type="text"
+                                    inputMode="decimal"
                                     className="input"
                                     placeholder="Ex: 5.000,00"
                                     value={resgateForm.amount}
