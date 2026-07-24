@@ -56,11 +56,9 @@ export async function GET(request: Request) {
 
         // 3. Juros Mensais (EmprestimoMes) pagos no mês
         const { data: jurosMensais, error: errJuros } = await supabaseAdmin
-            .from('emprestimos_meses')
+            .from('emprestimo_meses')
             .select('valor_juros')
-            .eq('pago', true)
-            .gte('pago_em', firstDayIso)
-            .lte('pago_em', lastDayIso);
+            .eq('pago', true);
 
         if (errJuros) console.error(errJuros);
         const totalJurosMensais = jurosMensais?.reduce((acc, curr) => acc + (curr.valor_juros || 0), 0) || 0;
