@@ -220,7 +220,7 @@ export async function POST(request: Request) {
             const mId = mes_id || targetId;
             const { data: mes, error: mErr } = await supabaseAdmin
                 .from('emprestimo_meses')
-                .update({ pago: true, data_pagamento: new Date().toISOString() })
+                .update({ pago: true })
                 .eq('id', mId)
                 .select('*, emprestimo:emprestimos(*)')
                 .single();
