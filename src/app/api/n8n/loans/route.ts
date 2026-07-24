@@ -198,8 +198,8 @@ export async function POST(request: Request) {
             const parts = rawCmd.split(':');
             if (parts.length >= 2) {
                 const parsedId = parts[1];
-                const parsedType = parts[2] || 'emprestimo';
-                if (parsedType === 'mes') {
+                const parsedType = (parts[2] || 'emprestimo').toLowerCase();
+                if (parsedType === 'mes' || parsedType === 'juros' || parsedType === 'parcela') {
                     mes_id = parsedId;
                 } else {
                     loan_id = parsedId;
@@ -214,8 +214,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'ID do empréstimo ou mês é obrigatório (ou envie command no formato pago:ID:tipo)' }, { status: 400 });
         }
 
-        // Check if mes_id or if type is 'mes'
-        if (mes_id || type === 'mes') {
+        // Check if mes_id or if type is 'mes', 'juros' or 'parcela'
+        const isMonthlyInstallment = !!mes_id || ['mes', 'juros', 'parcela'].includes(String(type).toLowerCase());
+        if (isMonthlyInstallment) {
             const mId = mes_id || targetId;
             const { data: mes, error: mErr } = await supabaseAdmin
                 .from('emprestimo_meses')
